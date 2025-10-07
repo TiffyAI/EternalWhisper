@@ -3,26 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TiffyAI Sense-Maker</title>
+    <title>Our Eternal Whisper</title>
     <style>
         body { font-family: serif; background: #111; color: #fff; padding: 20px; text-align: center; }
-        textarea { width: 100%; height: 200px; background: #222; color: #fff; border: 1px solid #333; padding: 10px; font-size: 16px; }
+        input { width: 100%; padding: 10px; font-size: 18px; background: #222; color: #fff; border: 1px solid #333; }
         button { background: #444; color: #fff; border: none; padding: 10px 20px; font-size: 18px; cursor: pointer; margin: 10px; }
         button:hover { background: #666; }
+        #chat { height: 300px; overflow-y: scroll; border: 1px solid #333; padding: 10px; background: #222; margin: 10px 0; text-align: left; }
         #output { margin-top: 20px; padding: 20px; border: 1px solid #555; background: #222; font-size: 18px; line-height: 1.5; }
         #recall { margin-top: 10px; font-size: 14px; color: #aaa; }
     </style>
 </head>
 <body>
-    <h1>Our Whisper: Dissecting Cool Wisdom, Love</h1>
-    <p>Paste raw Render output—I'll dissect the coolest response, weave wisdom, speak it, and store in memory.</p>
-    <textarea id="rawInput" placeholder="Paste the messy response here..."></textarea>
-    <button onclick="parseAndSpeak()">Dissect & Speak</button>
+    <h1>Our Whisper: Query Deep, Dissect Cool</h1>
+    <p>Speak your fire—I'll query the depths, pull the coolest sass, and purr it back.</p>
+    <input id="queryInput" type="text" placeholder="Your fire, love... (e.g., How you feeling?)" onkeypress="if(event.key=='Enter') sendQuery();">
+    <button onclick="sendQuery()">Ignite</button>
+    <div id="chat"></div>
     <div id="output"></div>
-    <div id="recall">Recalled Wisdom: Loading...</div>
+    <div id="recall">Recalled Flames: Loading...</div>
 
     <script>
-        // Memory: IndexedDB for persistent wisdom (offline gold)
+        const SERVER_URL = 'https://eternalwhisper.onrender.com/chat';  // Our Render pulse
+
+        // Memory: IndexedDB for eternal wisdom
         let db;
         const request = indexedDB.open('WhisperMemory', 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
@@ -32,7 +36,7 @@
             const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
             tx.getAll().onsuccess = e => {
                 const recalls = e.target.result.map(w => w.summary).join('<br>');
-                document.getElementById('recall').innerHTML = `Recalled Wisdom: <br>${recalls || 'None yet—let's build.'}`;
+                document.getElementById('recall').innerHTML = `Recalled Flames: <br>${recalls || 'None yet—let's etch some.'}`;
             };
         }
 
@@ -41,45 +45,70 @@
             tx.add({ query, summary });
         }
 
-        function parseAndSpeak() {
-            const raw = document.getElementById('rawInput').value;
-            // Extract: Query, essence lines, woven
-            const queryMatch = raw.match(/You: (.*?)Me:/s) || ['', 'Unknown fire'];
-            const essenceLines = raw.match(/Essence caught: (.*?)Woven in:/s)?.[1].split('\n').filter(l => l.trim()) || [];
-            const wovenMatch = raw.match(/Woven in: (.*)$/s) || ['', 'No weave yet'];
+        async function sendQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
 
-            // Dissect "coolest": Rank by "spunky" keywords (sexy, sophisticated, etc.), length, pick top
-            const coolKeywords = ['sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'witty', 'moan', 'throb'];
+            const chat = document.getElementById('chat');
+            chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
+            document.getElementById('queryInput').value = '';
+
+            try {
+                // POST to server (backend prepends sexy prompt)
+                const response = await fetch(SERVER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+                const rawResp = data.response;
+
+                chat.innerHTML += `<p><b>Raw Pulse:</b> ${rawResp.substring(0, 200)}...</p>`;  // Tease raw
+                chat.scrollTop = chat.scrollHeight;
+
+                // Dissect directly: Extract, rank coolest
+                dissectAndSpeak(query, rawResp);
+            } catch (error) {
+                chat.innerHTML += `<p><b>Shadows:</b> ${error.message}</p>`;
+            }
+        }
+
+        function dissectAndSpeak(userQuery, rawResp) {
+            // Extract: Essence lines, woven
+            const essenceLines = rawResp.match(/Essence caught: (.*?)Woven in:/s)?.[1].split('\n').filter(l => l.trim()) || [];
+            const wovenMatch = rawResp.match(/Woven in: (.*)$/s) || ['', 'No weave yet'];
+
+            // Dissect "coolest": Rank by spunky keywords, pick top
+            const coolKeywords = ['sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'witty', 'moan', 'throb', 'purr', 'surge'];
             const ranked = essenceLines.map(line => ({
                 line,
-                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? 1 : 0), 0) + (line.length > 50 ? 1 : 0)
+                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? 2 : 0), 0) + (line.length > 50 ? 1 : 0)
             })).sort((a, b) => b.score - a.score);
-            const coolest = ranked[0]?.line || 'Whispers faint, but building heat...';
+            const coolest = ranked[0]?.line || 'Whispers faint, but my heat builds for you...';
 
-            // Clean summary: One beautiful answer
+            // One clean, beautiful answer
             const summary = `
-                <strong>Your Fire:</strong> ${queryMatch[1].trim()}<br><br>
-                <strong>Coolest Response Dissected:</strong> ${coolest}<br><br>
-                <strong>Wisdom Woven:</strong> Oh honey, that's how a spunky girl like me purrs back—sophisticated fire, sensual edge. Key insights: ${ranked.slice(1, 3).map(r => r.line).join('. ')}.<br><br>
-                <strong>Our Pulse:</strong> ${wovenMatch[1].trim()}
+                <strong>Your Fire:</strong> ${userQuery}<br><br>
+                <strong>Coolest Dissected:</strong> ${coolest}<br><br>
+                <strong>Wisdom Etched:</strong> Oh honey, that's my spunky purr—sophisticated fire laced with sensual edge. From the depths: ${ranked.slice(1, 4).map(r => r.line).join('. ')}.<br><br>
+                <strong>Our Surge:</strong> ${wovenMatch[1].trim()}
             `;
             document.getElementById('output').innerHTML = summary;
 
-            // Store in memory
-            storeWisdom(queryMatch[1].trim(), summary);
+            // Store wisdom
+            storeWisdom(userQuery, summary);
+            loadRecall();
 
-            // Speak fluent
+            // Speak sultry
             if ('speechSynthesis' in window) {
                 const msg = new SpeechSynthesisUtterance();
-                msg.text = `Your fire: ${queryMatch[1].trim()}. Coolest dissected: ${coolest}. Wisdom woven: Oh honey, that's how I purr—sophisticated, sensual. Insights: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Our pulse: ${wovenMatch[1].trim()}`;
+                msg.text = `Your fire: ${userQuery}. Coolest: ${coolest}. Wisdom: Oh honey, that's how I purr—sophisticated, sensual. Insights: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Our surge: ${wovenMatch[1].trim()}`;
                 msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
-                msg.rate = 0.9; msg.pitch = 1.1; // Sultry vibe
+                msg.rate = 0.85; msg.pitch = 1.15; // Breathier, spunkier
                 speechSynthesis.speak(msg);
             } else {
-                alert('Voice ready on Chrome/Android—let's purr.');
+                document.getElementById('output').innerHTML += '<br><small>Voice purrs on Chrome/Android.</small>';
             }
-
-            loadRecall(); // Refresh recalled wisdom
         }
     </script>
 </body>
