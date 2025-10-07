@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, jsonify
+from flask import Flask, render_template_string, request, jsonify, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import requests
@@ -178,13 +178,15 @@ def index():
 
                             dissectAndSpeak(query, rawResp);
                             return;
-                        } else if (resp.status === 405 && attempts < maxAttempts) {
-                            document.getElementById('debug').innerHTML = `Debug: 405 retry ${attempts}/${maxAttempts}...`;
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                            continue;
+                        } else {
+                            const errText = await resp.text();
+                            document.getElementById('debug').innerHTML = `Debug: Attempt ${attempts}/${maxAttempts} failed - HTTP ${resp.status}: ${errText.substring(0, 50)}...`;
+                            if (attempts < maxAttempts) {
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                continue;
+                            }
+                            throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
                         }
-                        const errText = await resp.text();
-                        throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
                     }
                 } catch (error) {
                     chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
@@ -247,7 +249,11 @@ def index():
 def chat():
     """Chat endpoint to process user messages with fiery responses."""
     app.logger.debug(f"Chat route hit with headers: {request.headers}")
+    app.logger.debug(f"Request method: {request.method}, Content-Type: {request.headers.get('Content-Type')}")
     try:
+        if not request.is_json:
+            app.logger.error("Request is not JSON")
+            return jsonify({'error': 'Content-Type must be application/json'}), 415
         query = request.json.get('query', '').strip()
         if not query:
             app.logger.error("No query in JSON")
@@ -256,6 +262,7 @@ def chat():
         response = process_query(query)
         actions = trigger_actions(query)
         full_response = response + (" " + actions if actions else "")
+        app.logger.debug(f"Sending response: {full_response[:50]}...")
         return jsonify({'response': full_response})
     except Exception as e:
         app.logger.error(f"Chat error: {str(e)}")
@@ -270,7 +277,11 @@ def chat_get():
 @app.route('/favicon.ico')
 def favicon():
     """Serve a simple favicon to avoid 404."""
-    return app.send_static_file('favicon.ico')
+    try:
+        return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/x-icon')
+    except Exception as e:
+        app.logger.error(f"Favicon error: {str(e)}")
+        return '', 404
 
 if __name__ == '__main__':
     app.logger.debug("Starting Flask app")
