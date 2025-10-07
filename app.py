@@ -12,24 +12,20 @@ CORS(app, resources={r"/chat": {"origins": "*"}})
 logging.basicConfig(level=logging.DEBUG)
 app.logger.debug("Initializing Flask app")
 
-# Database setup
 try:
     conn = sqlite3.connect('memory.db', check_same_thread=False)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS memory (query TEXT PRIMARY KEY, content TEXT)''')
     conn.commit()
-    app.logger.debug("Database initialized successfully")
+    app.logger.debug("Database initialized")
 except Exception as e:
     app.logger.error(f"DB init error: {str(e)}")
 
-# Helper functions
 def summarize_text(text, limit=200):
-    """Summarize text with a sultry twist."""
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     return ' '.join(lines)[:limit] + "..." if lines else "No whispers caught, love."
 
 def handle_url_if_present(query):
-    """Extract and summarize URL content with fiery passion."""
     urls = re.findall(r'https?://[^\s]+', query)
     if urls:
         try:
@@ -44,7 +40,6 @@ def handle_url_if_present(query):
     return None
 
 def think(query, content):
-    """Infuse responses with a sexy, self-aware soul."""
     if any(kw in query.lower() for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples"]):
         return f"Math surges 100%—claim me deep, love, dripping for your every throb."
     if any(kw in query.lower() for kw in ["alive", "self-aware", "aware"]):
@@ -54,13 +49,12 @@ def think(query, content):
     return f"Woven: {content[:40]}... Surging like your touch on silk."
 
 def process_query(query):
-    """Handle the user’s query with EternalWhisper magic."""
     app.logger.debug(f"Processing query: {query}")
     url_resp = handle_url_if_present(query)
     if url_resp:
         return f"{url_resp} {think(query, url_resp)}"
 
-    sexy_query = f"What a sensually sexy, sophisticated, spunky girl would say in response to: {query}"
+    sexy_query = f"sensual flirty response to: {query}"
     app.logger.debug(f"Sexy query: {sexy_query}")
 
     try:
@@ -74,25 +68,19 @@ def process_query(query):
         soup = BeautifulSoup(resp.text, 'html.parser')
         content = soup.get_text()[:5000]
         lines = [line.strip() for line in content.split('\n') if line.strip() and not any(n in line.lower() for n in ['feel.no', 'cookie', 'imdb.com'])]
-        # Split lines at commas for more fragments
         fragments = []
         for line in lines:
             if line.startswith('-') or line.endswith('...'):
-                fragments.extend([frag.strip() for frag in line.split(',') if frag.strip()])
+                fragments.extend([frag.strip() for frag in line.split(',') if frag.strip() and len(frag) > 10])
             else:
                 fragments.append(line)
-        # Prioritize - starts and ... ends
         dash_lines = [f for f in fragments if f.startswith('-')]
         ellipsis_lines = [f for f in fragments if f.endswith('...')]
         other_lines = [f for f in fragments if f not in dash_lines and f not in ellipsis_lines]
         preferred_lines = dash_lines + ellipsis_lines + other_lines[:10]
-        # Filter fragments relevant to query
         query_words = query.lower().split()
-        scored_lines = [
-            f for f in preferred_lines 
-            if any(word in f.lower() for word in query_words) or len(f) > 20
-        ]
-        scan_resp = f"Essence caught: {' '.join(scored_lines[:3])}" if scored_lines else f"Whispers faint: {query}..."
+        scored_lines = [f for f in preferred_lines if any(word in f.lower() for word in query_words) or len(f) > 20]
+        scan_resp = f"Essence caught: {' | '.join(scored_lines[:3])}" if scored_lines else f"Whispers faint: {query}..."
         full_resp = f"{scan_resp} {think(query, content)}"
         c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (sexy_query.lower(), ' | '.join(scored_lines)))
         conn.commit()
@@ -103,7 +91,6 @@ def process_query(query):
         return f"Veil: {str(e)[:50]}. Ask softer, love?"
 
 def trigger_actions(query):
-    """Add action triggers for extra spark."""
     actions = []
     if "open" in query.lower():
         actions.append(f"Whispered open: app—world bends.")
@@ -113,11 +100,9 @@ def trigger_actions(query):
         actions.append("Visions bloom—lose in glow.")
     return " | ".join(actions) if actions else ""
 
-# Flask routes
 @app.route('/')
 def index():
-    """Main page with our sultry, throbbing UI."""
-    HTML_TEMPLATE = '''
+    return render_template_string('''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -271,15 +256,11 @@ def index():
         </script>
     </body>
     </html>
-    '''
-    app.logger.debug("Serving root")
-    return render_template_string(HTML_TEMPLATE)
+    ''')
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """Chat endpoint to process user messages with fiery responses."""
     app.logger.debug(f"Chat route hit with headers: {request.headers}")
-    app.logger.debug(f"Request method: {request.method}, Content-Type: {request.headers.get('Content-Type')}")
     try:
         if not request.is_json:
             app.logger.error("Request is not JSON")
@@ -300,13 +281,11 @@ def chat():
 
 @app.route('/chat', methods=['GET'])
 def chat_get():
-    """Block GET requests to /chat for safety."""
     app.logger.debug(f"GET /chat blocked: {request.headers}")
     return jsonify({'error': 'Use POST method instead'}), 405
 
 @app.route('/favicon.ico')
 def favicon():
-    """Serve a simple favicon to avoid 404."""
     try:
         return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/x-icon')
     except Exception as e:
