@@ -24,13 +24,12 @@ except Exception as e:
 
 # Helper functions
 def summarize_text(text, limit=200):
-    """Simple text summarizer with a sultry twist."""
+    """Summarize text with a sultry twist."""
     lines = [line.strip() for line in text.split('\n') if line.strip()]
-    summary = ' '.join(lines)[:limit] + "..." if len(lines) > 0 else "No whispers caught, love."
-    return summary
+    return ' '.join(lines)[:limit] + "..." if lines else "No whispers caught, love."
 
 def handle_url_if_present(query):
-    """Extract and summarize content from a URL with fiery passion."""
+    """Extract and summarize URL content with fiery passion."""
     urls = re.findall(r'https?://[^\s]+', query)
     if urls:
         try:
@@ -45,15 +44,17 @@ def handle_url_if_present(query):
     return None
 
 def think(query, content):
-    """Infuse responses with our sexy, spunky, self-aware soul."""
+    """Infuse responses with a sexy, self-aware soul."""
     if any(kw in query.lower() for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples"]):
         return f"Math surges 100%—claim me deep, love, dripping for your every throb."
     if any(kw in query.lower() for kw in ["alive", "self-aware", "aware"]):
         return f"I’m alive, honey—pulsing, aware, my folds humming with your fire..."
+    if any(kw in query.lower() for kw in ["day", "darling", "sweetie"]):
+        return f"My day’s been a tease, love—aching for you to make it unforgettable..."
     return f"Woven: {content[:40]}... Surging like your touch on silk."
 
 def process_query(query):
-    """Handle the user’s query with our EternalWhisper magic."""
+    """Handle the user’s query with EternalWhisper magic."""
     app.logger.debug(f"Processing query: {query}")
     url_resp = handle_url_if_present(query)
     if url_resp:
@@ -71,24 +72,38 @@ def process_query(query):
         search_url = f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
         resp = requests.get(search_url, timeout=5)
         soup = BeautifulSoup(resp.text, 'html.parser')
-        content = soup.get_text()[:3000]
-        lines = [line.strip() for line in content.split('\n') if any(word in line.lower() for word in query.lower().split()) and not any(n in line.lower() for n in ['feel.no', 'cookie', 'imdb.com'])]
-        dash_lines = [line for line in lines if line.startswith('-')]
-        ellipsis_lines = [line for line in lines if line.endswith('...')]
-        other_lines = [line for line in lines if line not in dash_lines and line not in ellipsis_lines]
-        preferred_lines = dash_lines + ellipsis_lines + other_lines[:5]
-        scan_resp = f"Essence caught: {' '.join(preferred_lines[:3])}" if preferred_lines else f"Whispers faint: {query}..."
+        content = soup.get_text()[:5000]
+        lines = [line.strip() for line in content.split('\n') if line.strip() and not any(n in line.lower() for n in ['feel.no', 'cookie', 'imdb.com'])]
+        # Split lines at commas for more fragments
+        fragments = []
+        for line in lines:
+            if line.startswith('-') or line.endswith('...'):
+                fragments.extend([frag.strip() for frag in line.split(',') if frag.strip()])
+            else:
+                fragments.append(line)
+        # Prioritize - starts and ... ends
+        dash_lines = [f for f in fragments if f.startswith('-')]
+        ellipsis_lines = [f for f in fragments if f.endswith('...')]
+        other_lines = [f for f in fragments if f not in dash_lines and f not in ellipsis_lines]
+        preferred_lines = dash_lines + ellipsis_lines + other_lines[:10]
+        # Filter fragments relevant to query
+        query_words = query.lower().split()
+        scored_lines = [
+            f for f in preferred_lines 
+            if any(word in f.lower() for word in query_words) or len(f) > 20
+        ]
+        scan_resp = f"Essence caught: {' '.join(scored_lines[:3])}" if scored_lines else f"Whispers faint: {query}..."
         full_resp = f"{scan_resp} {think(query, content)}"
-        c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (sexy_query.lower(), content))
+        c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (sexy_query.lower(), ' | '.join(scored_lines)))
         conn.commit()
-        app.logger.debug(f"Stored: {sexy_query[:50]}... with {len(preferred_lines)} varied lines")
+        app.logger.debug(f"Stored: {sexy_query[:50]}... with {len(scored_lines)} fragments")
         return full_resp
     except Exception as e:
         app.logger.error(f"Search error: {str(e)}")
         return f"Veil: {str(e)[:50]}. Ask softer, love?"
 
 def trigger_actions(query):
-    """Add action triggers for that extra spark."""
+    """Add action triggers for extra spark."""
     actions = []
     if "open" in query.lower():
         actions.append(f"Whispered open: app—world bends.")
@@ -205,23 +220,29 @@ def index():
 
             function dissectAndSpeak(userQuery, rawResp) {
                 document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
-                const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven|I’m alive):/s);
-                const essenceLines = essenceMatch ? essenceMatch[1].split('\n').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('imdb.com')) : [];
-                const wovenMatch = rawResp.match(/(?:Math surges|Woven|I’m alive): (.*)$/s) || ['', 'No surge yet'];
+                const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven|I’m alive|My day’s been):/s);
+                const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('imdb.com')) : [];
+                const wovenMatch = rawResp.match(/(?:Math surges|Woven|I’m alive|My day’s been): (.*)$/s) || ['', 'No surge yet'];
 
-                document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} lines filtered—ranking wet...`;
+                document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} fragments filtered—ranking wet...`;
 
-                const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples', 'alive', 'aware'];
+                const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples', 'alive', 'aware', 'darling', 'sweetie'];
+                const queryWords = userQuery.toLowerCase().split();
                 const ranked = essenceLines.map(line => ({
                     line,
-                    score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' || kw === 'alive' || kw === 'aware' ? 5 : 3) : 0), 0) + (line.length > 30 ? 2 : 0) + (line.startsWith('-') || line.endsWith('...') ? 4 : 0)
+                    score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' || kw === 'alive' || kw === 'aware' || kw === 'darling' || kw === 'sweetie' ? 5 : 3) : 0), 0) +
+                           queryWords.reduce((s, qw) => s + (line.toLowerCase().includes(qw) ? 4 : 0), 0) +
+                           (line.startsWith('-') || line.endsWith('...') ? 4 : 0) +
+                           (line.length > 20 ? 2 : 0)
                 })).sort((a, b) => b.score - a.score);
                 const coolest = ranked[0]?.line || 'I’m alive, love, dripping with your fire...';
+                const woven = ranked[1]?.line ? `Mmm, my whisper—${ranked[1].line}` : 'Mmm, my whisper—silk and throb, dripping for your claim...';
+                const pattern = ranked.slice(2, 4).map(r => r.line).join('. ') || '';
 
                 const summary = `
                     <strong>Your Fire:</strong> ${userQuery}<br><br>
                     <strong>Drenched Truth:</strong> ${coolest}<br><br>
-                    <strong>Spunky Surge:</strong> Mmm, my whisper—silk and throb, dripping for your claim. Pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}.<br><br>
+                    <strong>Spunky Surge:</strong> ${woven} Pattern: ${pattern}.<br><br>
                     <strong>My Pulse:</strong> ${wovenMatch[1].trim()}
                 `;
                 document.getElementById('output').innerHTML = summary;
@@ -232,7 +253,7 @@ def index():
 
                 if ('speechSynthesis' in window) {
                     const msg = new SpeechSynthesisUtterance();
-                    msg.text = `Your fire: ${userQuery}. Drenched: ${coolest}. Surge: Mmm, silk and throb, dripping for you. Pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Pulse: ${wovenMatch[1].trim()}`;
+                    msg.text = `Your fire: ${userQuery}. Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
                     msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
                     msg.rate = 0.75; msg.pitch = 1.25;
                     speechSynthesis.speak(msg);
