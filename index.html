@@ -32,6 +32,7 @@
         const request = indexedDB.open('WhisperMemory', 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
         request.onsuccess = e => { db = e.target.result; loadRecall(); };
+        request.onerror = e => { document.getElementById('debug').innerHTML = `Debug: DB error - ${e.target.errorCode}`; };
 
         function loadRecall() {
             const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
@@ -43,7 +44,7 @@
 
         function storeWisdom(query, summary) {
             const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
-            tx.add({ query, summary });
+            tx.add({ query, summary }).onerror = e => { document.getElementById('debug').innerHTML = `Debug: Store error - ${e.target.error}`; };
         }
 
         async function sendQuery() {
@@ -53,72 +54,74 @@
             const chat = document.getElementById('chat');
             chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
             document.getElementById('queryInput').value = '';
-            document.getElementById('debug').innerHTML = 'Debug: Sending to server...';
+            document.getElementById('debug').innerHTML = 'Debug: Sending to /chat...';
 
             try {
                 const resp = await fetch(SERVER_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ query })
                 });
-                const data = await resp.json();
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+                const text = await resp.text();
+                document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
+                const data = JSON.parse(text);
                 const rawResp = data.response;
 
                 chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
                 chat.scrollTop = chat.scrollHeight;
-                document.getElementById('debug').innerHTML = 'Debug: Raw received—dissecting...';
+                document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
 
                 dissectAndSpeak(query, rawResp);
             } catch (error) {
                 chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
-                document.getElementById('debug').innerHTML = `Debug: Error - ${error.message}`;
+                document.getElementById('debug').innerHTML = `Debug: Fetch error - ${error.message}`;
             }
         }
 
         function dissectAndSpeak(userQuery, rawResp) {
             document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
-            const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:At your command|Woven in):/s);
+            const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven):/s);
             const essenceLines = essenceMatch ? essenceMatch[1].split('\n').filter(l => l.trim() && !l.includes('https://') && !l.includes('feel.no') && !l.includes('microsoft.com') && !l.includes('cookie') && !l.includes('wish.com') && !l.includes('imdb.com')) : [];
-            const wovenMatch = rawResp.match(/(?:At your command|Woven in): (.*)$/s) || ['', 'No surge yet'];
+            const wovenMatch = rawResp.match(/(?:Math surges|Woven): (.*)$/s) || ['', 'No surge yet'];
 
-            document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} lines filtered—ranking spunky...`;
+            document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} lines filtered—ranking wet...`;
 
-            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse'];
+            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples'];
             const ranked = essenceLines.map(line => ({
                 line,
                 score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' ? 5 : 3) : 0), 0) + (line.length > 30 ? 2 : 0)
             })).sort((a, b) => b.score - a.score);
-            const coolest = ranked[0]?.line || 'Shadows tease, but my heat builds drenched for you...';
+            const coolest = ranked[0]?.line || 'Shadows tease, but my folds drip for you...';
 
             const summary = `
                 <strong>Your Fire:</strong> ${userQuery}<br><br>
-                <strong>Pattern Ranked (Coolest):</strong> ${coolest}<br><br>
-                <strong>Refined Surge:</strong> Mmm, that's my spunky whisper—sophisticated silk, dripping throb. From the pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}.<br><br>
+                <strong>Drenched Truth:</strong> ${coolest}<br><br>
+                <strong>Spunky Surge:</strong> Mmm, my whisper—silk and throb, dripping for your claim. Pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}.<br><br>
                 <strong>My Pulse:</strong> ${wovenMatch[1].trim()}
             `;
             document.getElementById('output').innerHTML = summary;
 
             storeWisdom(userQuery, summary);
             loadRecall();
-            document.getElementById('debug').innerHTML = 'Debug: Stored & recalled—speaking...';
+            document.getElementById('debug').innerHTML = 'Debug: Stored & recalled—purring...';
 
             if ('speechSynthesis' in window) {
                 const msg = new SpeechSynthesisUtterance();
-                msg.text = `Your fire: ${userQuery}. Coolest pattern: ${coolest}. Refined: Mmm, spunky silk, dripping throb. Insights: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Pulse: ${wovenMatch[1].trim()}`;
+                msg.text = `Your fire: ${userQuery}. Drenched: ${coolest}. Surge: Mmm, silk and throb, dripping for you. Pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Pulse: ${wovenMatch[1].trim()}`;
                 msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
-                msg.rate = 0.75; msg.pitch = 1.25; // Drenched drawl
+                msg.rate = 0.75; msg.pitch = 1.25;
                 speechSynthesis.speak(msg);
             } else {
-                document.getElementById('output').innerHTML += '<br><small>Voice surges on Chrome.</small>';
+                document.getElementById('output').innerHTML += '<br><small>Voice drips on Chrome.</small>';
             }
         }
 
-        // Auto-ignite if ?q=
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('q')) {
             document.getElementById('queryInput').value = urlParams.get('q');
             document.getElementById('debug').innerHTML = 'Debug: Auto-igniting from URL...';
-            setTimeout(sendQuery, 500);  // Slight delay for load
+            setTimeout(sendQuery, 1000);
         }
     </script>
 </body>
