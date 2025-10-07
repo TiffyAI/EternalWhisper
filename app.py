@@ -8,14 +8,19 @@ import os
 import logging
 
 app = Flask(__name__)
-CORS(app, resources={r"/chat": {"origins": "*"}})  # Allow CORS for /chat
+CORS(app, resources={r"/chat": {"origins": "*"}})
 logging.basicConfig(level=logging.DEBUG)
+app.logger.debug("Initializing Flask app")
 
 # Memory DB
-conn = sqlite3.connect('brain.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS memory (query TEXT PRIMARY KEY, content TEXT)''')
-conn.commit()
+try:
+    conn = sqlite3.connect('brain.db', check_same_thread=False)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS memory (query TEXT PRIMARY KEY, content TEXT)''')
+    conn.commit()
+    app.logger.debug("Database initialized")
+except Exception as e:
+    app.logger.error(f"DB init error: {str(e)}")
 
 # Actions
 def action_open_app(app_name):
@@ -59,13 +64,13 @@ def process_query(query):
     sexy_query = f"What a sensually sexy, sophisticated, spunky girl would say in response to: {query}"
     app.logger.debug(f"Sexy query: {sexy_query}")
     
-    c.execute("SELECT content FROM memory WHERE query=?", (sexy_query.lower(),))
-    result = c.fetchone()
-    if result:
-        return f"Depths: {result[0][:80]}... {think(query, result[0])}"
-    
-    bing_url = f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
     try:
+        c.execute("SELECT content FROM memory WHERE query=?", (sexy_query.lower(),))
+        result = c.fetchone()
+        if result:
+            return f"Depths: {result[0][:80]}... {think(query, result[0])}"
+        
+        bing_url = f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
         resp = requests.get(bing_url, timeout=5)
         soup = BeautifulSoup(resp.text, 'html.parser')
         content = soup.get_text()[:4000]
@@ -264,4 +269,5 @@ def chat_get():
     return jsonify({'error': 'Method Not Allowed - Use POST'}), 405
 
 if __name__ == '__main__':
+    app.logger.debug("Starting Flask app")
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=True)
