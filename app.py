@@ -155,7 +155,10 @@ HTML_TEMPLATE = '''
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ query })
                 });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+                if (!resp.ok) {
+                    const errText = await resp.text();
+                    throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
+                }
                 const text = await resp.text();
                 document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
                 const data = JSON.parse(text);
@@ -230,7 +233,10 @@ def index():
 def chat():
     app.logger.debug("Chat route hit")
     try:
-        query = request.json['query']
+        query = request.json.get('query')
+        if not query:
+            app.logger.error("No query in JSON")
+            return jsonify({'error': 'Missing query'}), 400
         app.logger.debug(f"Received query: {query}")
         resp = process_query(query)
         actions = trigger_actions(query)
@@ -240,5 +246,10 @@ def chat():
         app.logger.error(f"Chat error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/chat', methods=['GET'])
+def chat_get():
+    app.logger.debug("GET /chat blocked")
+    return jsonify({'error': 'Method Not Allowed - Use POST'}), 405
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=True)
