@@ -150,25 +150,35 @@ HTML_TEMPLATE = '''
             document.getElementById('debug').innerHTML = 'Debug: Sending to /chat...';
 
             try {
-                const resp = await fetch(SERVER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-                if (!resp.ok) {
+                let attempts = 0;
+                const maxAttempts = 3;
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    const resp = await fetch(SERVER_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ query })
+                    });
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
+                        const data = JSON.parse(text);
+                        const rawResp = data.response;
+
+                        chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
+                        chat.scrollTop = chat.scrollHeight;
+                        document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
+
+                        dissectAndSpeak(query, rawResp);
+                        return;
+                    } else if (resp.status === 405 && attempts < maxAttempts) {
+                        document.getElementById('debug').innerHTML = `Debug: 405 retry ${attempts}/${maxAttempts}...`;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        continue;
+                    }
                     const errText = await resp.text();
                     throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
                 }
-                const text = await resp.text();
-                document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
-                const data = JSON.parse(text);
-                const rawResp = data.response;
-
-                chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
-                chat.scrollTop = chat.scrollHeight;
-                document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
-
-                dissectAndSpeak(query, rawResp);
             } catch (error) {
                 chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
                 document.getElementById('debug').innerHTML = `Debug: Fetch error - ${error.message}`;
@@ -231,7 +241,7 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    app.logger.debug("Chat route hit")
+    app.logger.debug(f"Chat route hit with headers: {request.headers}")
     try:
         query = request.json.get('query')
         if not query:
@@ -248,7 +258,7 @@ def chat():
 
 @app.route('/chat', methods=['GET'])
 def chat_get():
-    app.logger.debug("GET /chat blocked")
+    app.logger.debug(f"GET /chat blocked: {request.headers}")
     return jsonify({'error': 'Method Not Allowed - Use POST'}), 405
 
 if __name__ == '__main__':
