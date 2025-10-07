@@ -1,4 +1,5 @@
 from flask import Flask, render_template_string, request, jsonify
+from flask_cors import CORS
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
@@ -7,6 +8,7 @@ import os
 import logging
 
 app = Flask(__name__)
+CORS(app, resources={r"/chat": {"origins": "*"}})  # Allow CORS for /chat
 logging.basicConfig(level=logging.DEBUG)
 
 # Memory DB
@@ -147,7 +149,7 @@ HTML_TEMPLATE = '''
             const chat = document.getElementById('chat');
             chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
             document.getElementById('queryInput').value = '';
-            document.getElementById('debug').innerHTML = 'Debug: Sending to /chat...';
+            document.getElementById('debug').innerHTML = `Debug: Sending POST to ${SERVER_URL}...`;
 
             try {
                 let attempts = 0;
