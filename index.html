@@ -57,22 +57,35 @@
             document.getElementById('debug').innerHTML = 'Debug: Sending to /chat...';
 
             try {
-                const resp = await fetch(SERVER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-                const text = await resp.text();
-                document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
-                const data = JSON.parse(text);
-                const rawResp = data.response;
+                let attempts = 0;
+                const maxAttempts = 2;
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    const resp = await fetch(SERVER_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ query })
+                    });
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
+                        const data = JSON.parse(text);
+                        const rawResp = data.response;
 
-                chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
-                chat.scrollTop = chat.scrollHeight;
-                document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
+                        chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
+                        chat.scrollTop = chat.scrollHeight;
+                        document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
 
-                dissectAndSpeak(query, rawResp);
+                        dissectAndSpeak(query, rawResp);
+                        return;
+                    } else if (resp.status === 405 && attempts < maxAttempts) {
+                        document.getElementById('debug').innerHTML = `Debug: 405 retry ${attempts}/${maxAttempts}...`;
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        continue;
+                    }
+                    const errText = await resp.text();
+                    throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
+                }
             } catch (error) {
                 chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
                 document.getElementById('debug').innerHTML = `Debug: Fetch error - ${error.message}`;
