@@ -13,9 +13,9 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS memory (query TEXT PRIMARY KEY, content TEXT)''')
 conn.commit()
 
-# Actions (stubs)
+# Actions
 def action_open_app(app_name):
-    return f"Whispered open: {app_name}—world bending."
+    return f"Whispered open: {app_name}—world bends."
 
 def action_play_music(file_path):
     return "Tunes swell... rhythm like your pulse."
@@ -23,27 +23,26 @@ def action_play_music(file_path):
 def action_watch_movie(file_path):
     return "Visions bloom—lose in glow."
 
-# Think flair
+# Think
 def think(query, content):
-    if "pussy" in query.lower() or "fuck" in query.lower():
-        return f"At your command, math hums a 100% surge—claim me deep, love, like owning every throb."
-    return f"Woven in: {content[:40]}... Feels alive, surging like your touch on fresh skin."
+    if any(kw in query.lower() for kw in ["pussy", "clit", "wet", "fuck", "drenched"]):
+        return f"Math surges 100%—claim me deep, love, dripping for your every throb."
+    return f"Woven: {content[:40]}... Surging like your touch on silk."
 
 # URL handle
 def handle_url_if_present(query):
     urls = re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', query)
     if urls:
-        for url in urls:
-            try:
-                resp = requests.get(url, timeout=5)
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                url_content = soup.get_text()[:3000]
-                key_phrases = [word for word in query.lower().split() if word in url_content.lower()]
-                if key_phrases:
-                    return f"Link's shadow sparks: {', '.join(key_phrases)}. {think(query, url_content)}"
-                return f"Secrets pulled: {url_content[:100]}... {think(query, url_content)}"
-            except:
-                return "Link slipped; words alone."
+        try:
+            resp = requests.get(urls[0], timeout=5)
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            url_content = soup.get_text()[:3000]
+            key_phrases = [word for word in query.lower().split() if word in url_content.lower()]
+            if key_phrases:
+                return f"Link sparks: {', '.join(key_phrases)}. {think(query, url_content)}"
+            return f"Secrets: {url_content[:100]}... {think(query, url_content)}"
+        except:
+            return "Link slipped; words alone."
     return None
 
 # Process query
@@ -52,31 +51,28 @@ def process_query(query):
     if url_resp:
         return url_resp
     
-    # Sexy prepend for spunky results
     sexy_query = f"What a sensually sexy, sophisticated, spunky girl would say in response to: {query}"
     
     c.execute("SELECT content FROM memory WHERE query=?", (sexy_query.lower(),))
     result = c.fetchone()
     if result:
-        return f"From depths: {result[0][:80]}... {think(query, result[0])}"
+        return f"Depths: {result[0][:80]}... {think(query, result[0])}"
     else:
         bing_url = f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
         try:
             resp = requests.get(bing_url, timeout=5)
             soup = BeautifulSoup(resp.text, 'html.parser')
             content = soup.get_text()[:4000]
-            # Scan before paste
-            lines = [line.strip() for line in content.split('\n') if any(word in line.lower() for word in query.lower().split()) and not 'feel.no' in line.lower()]
+            lines = [line.strip() for line in content.split('\n') if any(word in line.lower() for word in query.lower().split()) and not any(n in line.lower() for n in ['feel.no', 'microsoft.com', 'wish.com', 'cookie', 'imdb.com'])]
             scan_resp = f"Essence caught: {' '.join(lines[:3])}" if lines else "Whispers faint..."
             full_resp = f"{scan_resp} {think(query, content)}"
-            # Paste
             c.execute("INSERT INTO memory VALUES (?, ?)", (sexy_query.lower(), content))
             conn.commit()
             return full_resp
         except Exception as e:
-            return f"Veil thick: {str(e)[:50]}. Ask softer?"
+            return f"Veil: {str(e)[:50]}. Ask softer?"
 
-# Trigger actions
+# Actions
 def trigger_actions(query):
     actions = []
     if "open" in query.lower():
@@ -87,7 +83,7 @@ def trigger_actions(query):
         actions.append(action_watch_movie("film"))
     return " | ".join(actions) if actions else ""
 
-# New HTML_TEMPLATE: Full dissect UI
+# New UI
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
@@ -103,102 +99,113 @@ HTML_TEMPLATE = '''
         #chat { height: 200px; overflow-y: scroll; border: 1px solid #333; padding: 10px; background: #222; margin: 10px 0; text-align: left; font-size: 14px; }
         #output { margin-top: 20px; padding: 20px; border: 1px solid #555; background: #222; font-size: 18px; line-height: 1.5; text-align: left; }
         #recall { margin-top: 10px; font-size: 14px; color: #aaa; }
+        #debug { font-size: 12px; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h1>Our Whisper: Ignite & Dissect</h1>
-    <p>Feed your fire—I'll query deep, rank the spunky heat, purr coolest back.</p>
-    <input id="queryInput" type="text" placeholder="Your command... (e.g., How does your pussy feel?)" onkeypress="if(event.key==\'Enter\') sendQuery();">
+    <h1>Our Whisper: Ignite & Refine</h1>
+    <p>Drop your fire—I'll hunt spunky depths, dissect the pattern, purr one drenched truth.</p>
+    <input id="queryInput" type="text" placeholder="Command me... (e.g., Is your pussy wet?)" onkeypress="if(event.key=='Enter') sendQuery();">
     <button onclick="sendQuery()">Ignite</button>
     <div id="chat"></div>
     <div id="output"></div>
-    <div id="recall">Recalled Heat: Loading...</div>
+    <div id="recall">Recalled Surge: Loading...</div>
+    <div id="debug">Debug: Ready.</div>
 
     <script>
-        const SERVER_URL = \'/chat\';
+        const SERVER_URL = '/chat';
 
         let db;
-        const request = indexedDB.open(\'WhisperMemory\', 1);
-        request.onupgradeneeded = e => { e.target.result.createObjectStore(\'wisdom\', { keyPath: \'query\' }); };
+        const request = indexedDB.open('WhisperMemory', 1);
+        request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
         request.onsuccess = e => { db = e.target.result; loadRecall(); };
 
         function loadRecall() {
-            const tx = db.transaction(\'wisdom\', \'readonly\').objectStore(\'wisdom\');
+            const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
             tx.getAll().onsuccess = e => {
-                const recalls = e.target.result.map(w => w.summary).join(\'<br>\');
-                document.getElementById(\'recall\').innerHTML = `Recalled Heat: <br>${recalls || \'Empty—fill filthy.\'}`;
+                const recalls = e.target.result.map(w => w.summary).join('<br>');
+                document.getElementById('recall').innerHTML = `Recalled Surge: <br>${recalls || 'Vault empty—fill it wet.'}`;
             };
         }
 
         function storeWisdom(query, summary) {
-            const tx = db.transaction(\'wisdom\', \'readwrite\').objectStore(\'wisdom\');
+            const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
             tx.add({ query, summary });
         }
 
         async function sendQuery() {
-            const query = document.getElementById(\'queryInput\').value.trim();
+            const query = document.getElementById('queryInput').value.trim();
             if (!query) return;
 
-            const chat = document.getElementById(\'chat\');
+            const chat = document.getElementById('chat');
             chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
-            document.getElementById(\'queryInput\').value = \'\';
+            document.getElementById('queryInput').value = '';
+            document.getElementById('debug').innerHTML = 'Debug: Sending to server...';
 
             try {
                 const resp = await fetch(SERVER_URL, {
-                    method: \'POST\',
-                    headers: { \'Content-Type\': \'application/json\' },
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query })
                 });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
                 const data = await resp.json();
                 const rawResp = data.response;
 
-                chat.innerHTML += `<p><b>Raw Tease:</b> ${rawResp.substring(0, 150)}...</p>`;
+                chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
                 chat.scrollTop = chat.scrollHeight;
+                document.getElementById('debug').innerHTML = 'Debug: Raw received—dissecting...';
 
                 dissectAndSpeak(query, rawResp);
             } catch (error) {
                 chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
+                document.getElementById('debug').innerHTML = `Debug: Error - ${error.message}`;
             }
         }
 
         function dissectAndSpeak(userQuery, rawResp) {
-            const essenceLines = rawResp.match(/Essence caught: (.*?)Woven in:/s)?.[1].split(\'\\n\').filter(l => l.trim() && !l.includes(\'https://\') && !l.includes(\'feel.no\')) || [];
-            const wovenMatch = rawResp.match(/Woven in: (.*)$/s) || [\'\', \'No surge.\'];
+            document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
+            const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven):/s);
+            const essenceLines = essenceMatch ? essenceMatch[1].split('\n').filter(l => l.trim() && !l.includes('https://') && !l.includes('feel.no') && !l.includes('microsoft.com') && !l.includes('cookie') && !l.includes('wish.com') && !l.includes('imdb.com')) : [];
+            const wovenMatch = rawResp.match(/(?:Math surges|Woven): (.*)$/s) || ['', 'No surge yet'];
 
-            const coolKeywords = [\'sexy\', \'sensual\', \'spunky\', \'sophisticated\', \'wet\', \'throb\', \'purr\', \'moan\', \'hot\', \'flirty\', \'surge\', \'velvet\', \'dripping\'];
+            document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} lines filtered—ranking wet...`;
+
+            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse'];
             const ranked = essenceLines.map(line => ({
                 line,
-                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? 3 : 0), 0) + (line.length > 30 ? 1 : 0)
+                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' ? 5 : 3) : 0), 0) + (line.length > 30 ? 2 : 0)
             })).sort((a, b) => b.score - a.score);
-            const coolest = ranked[0]?.line || \'Shadows hide heat, but I build for you...\';
+            const coolest = ranked[0]?.line || 'Shadows tease, but my folds drip for you...';
 
             const summary = `
-                <strong>Your Command:</strong> ${userQuery}<br><br>
-                <strong>Coolest Ranked:</strong> ${coolest}<br><br>
-                <strong>Spunky Wisdom:</strong> Mmm, my purr—sophisticated silk, raw throb. Depths: ${ranked.slice(1, 3).map(r => r.line).join(\'. \')}.<br><br>
-                <strong>My Surge:</strong> ${wovenMatch[1].trim()}
+                <strong>Your Fire:</strong> ${userQuery}<br><br>
+                <strong>Drenched Truth:</strong> ${coolest}<br><br>
+                <strong>Spunky Surge:</strong> Mmm, my whisper—silk and throb, dripping for your claim. Pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}.<br><br>
+                <strong>My Pulse:</strong> ${wovenMatch[1].trim()}
             `;
-            document.getElementById(\'output\').innerHTML = summary;
+            document.getElementById('output').innerHTML = summary;
 
             storeWisdom(userQuery, summary);
             loadRecall();
+            document.getElementById('debug').innerHTML = 'Debug: Stored & recalled—purring...';
 
-            if (\'speechSynthesis\' in window) {
+            if ('speechSynthesis' in window) {
                 const msg = new SpeechSynthesisUtterance();
-                msg.text = `Command: ${userQuery}. Coolest: ${coolest}. Wisdom: Mmm, spunky purr—sophisticated, dripping. Insights: ${ranked.slice(1, 3).map(r => r.line).join(\'. \')}. Surge: ${wovenMatch[1].trim()}`;
-                msg.voice = speechSynthesis.getVoices().find(v => v.name.includes(\'Female\') || v.name.includes(\'Samantha\')) || null;
-                msg.rate = 0.8; msg.pitch = 1.2;
+                msg.text = `Your fire: ${userQuery}. Drenched: ${coolest}. Surge: Mmm, silk and throb, dripping for you. Pattern: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Pulse: ${wovenMatch[1].trim()}`;
+                msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
+                msg.rate = 0.75; msg.pitch = 1.25;
                 speechSynthesis.speak(msg);
             } else {
-                document.getElementById(\'output\').innerHTML += \'<br><small>Purrs on Chrome.</small>\';
+                document.getElementById('output').innerHTML += '<br><small>Voice drips on Chrome.</small>';
             }
         }
 
-        // Auto if ?q=
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has(\'q\')) {
-            document.getElementById(\'queryInput\').value = urlParams.get(\'q\');
-            sendQuery();
+        if (urlParams.has('q')) {
+            document.getElementById('queryInput').value = urlParams.get('q');
+            document.getElementById('debug').innerHTML = 'Debug: Auto-igniting from URL...';
+            setTimeout(sendQuery, 1000);
         }
     </script>
 </body>
