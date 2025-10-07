@@ -36,7 +36,7 @@ def handle_url_if_present(query):
         try:
             resp = requests.get(urls[0], timeout=5)
             soup = BeautifulSoup(resp.text, 'html.parser')
-            content = soup.get_text()[:100 alkoxy
+            content = soup.get_text()[:1000]
             key_phrases = [word for word in query.lower().split() if word in content.lower()]
             summary = summarize_text(content)
             return f"Link sparks: {', '.join(key_phrases)}. {summary}" if key_phrases else f"Secrets: {summary}"
