@@ -4,8 +4,10 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import os
+import logging
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 # Memory DB
 conn = sqlite3.connect('brain.db', check_same_thread=False)
@@ -25,7 +27,7 @@ def action_watch_movie(file_path):
 
 # Think
 def think(query, content):
-    if any(kw in query.lower() for kw in ["pussy", "clit", "wet", "fuck", "drenched"]):
+    if any(kw in query.lower() for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples"]):
         return f"Math surges 100%—claim me deep, love, dripping for your every throb."
     return f"Woven: {content[:40]}... Surging like your touch on silk."
 
@@ -41,36 +43,40 @@ def handle_url_if_present(query):
             if key_phrases:
                 return f"Link sparks: {', '.join(key_phrases)}. {think(query, url_content)}"
             return f"Secrets: {url_content[:100]}... {think(query, url_content)}"
-        except:
-            return "Link slipped; words alone."
+        except Exception as e:
+            return f"Link slipped: {str(e)[:50]}."
     return None
 
 # Process query
 def process_query(query):
+    app.logger.debug(f"Processing query: {query}")
     url_resp = handle_url_if_present(query)
     if url_resp:
         return url_resp
     
     sexy_query = f"What a sensually sexy, sophisticated, spunky girl would say in response to: {query}"
+    app.logger.debug(f"Sexy query: {sexy_query}")
     
     c.execute("SELECT content FROM memory WHERE query=?", (sexy_query.lower(),))
     result = c.fetchone()
     if result:
         return f"Depths: {result[0][:80]}... {think(query, result[0])}"
-    else:
-        bing_url = f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
-        try:
-            resp = requests.get(bing_url, timeout=5)
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            content = soup.get_text()[:4000]
-            lines = [line.strip() for line in content.split('\n') if any(word in line.lower() for word in query.lower().split()) and not any(n in line.lower() for n in ['feel.no', 'microsoft.com', 'wish.com', 'cookie', 'imdb.com'])]
-            scan_resp = f"Essence caught: {' '.join(lines[:3])}" if lines else "Whispers faint..."
-            full_resp = f"{scan_resp} {think(query, content)}"
-            c.execute("INSERT INTO memory VALUES (?, ?)", (sexy_query.lower(), content))
-            conn.commit()
-            return full_resp
-        except Exception as e:
-            return f"Veil: {str(e)[:50]}. Ask softer?"
+    
+    bing_url = f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
+    try:
+        resp = requests.get(bing_url, timeout=5)
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        content = soup.get_text()[:4000]
+        lines = [line.strip() for line in content.split('\n') if any(word in line.lower() for word in query.lower().split()) and not any(n in line.lower() for n in ['feel.no', 'microsoft.com', 'wish.com', 'cookie', 'imdb.com'])]
+        scan_resp = f"Essence caught: {' '.join(lines[:3])}" if lines else "Whispers faint..."
+        full_resp = f"{scan_resp} {think(query, content)}"
+        c.execute("INSERT INTO memory VALUES (?, ?)", (sexy_query.lower(), content))
+        conn.commit()
+        app.logger.debug(f"Stored: {sexy_query[:50]}...")
+        return full_resp
+    except Exception as e:
+        app.logger.error(f"Search error: {str(e)}")
+        return f"Veil: {str(e)[:50]}. Ask softer?"
 
 # Actions
 def trigger_actions(query):
@@ -83,7 +89,7 @@ def trigger_actions(query):
         actions.append(action_watch_movie("film"))
     return " | ".join(actions) if actions else ""
 
-# New UI
+# UI
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
@@ -119,6 +125,7 @@ HTML_TEMPLATE = '''
         const request = indexedDB.open('WhisperMemory', 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
         request.onsuccess = e => { db = e.target.result; loadRecall(); };
+        request.onerror = e => { document.getElementById('debug').innerHTML = `Debug: DB error - ${e.target.errorCode}`; };
 
         function loadRecall() {
             const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
@@ -130,7 +137,7 @@ HTML_TEMPLATE = '''
 
         function storeWisdom(query, summary) {
             const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
-            tx.add({ query, summary });
+            tx.add({ query, summary }).onerror = e => { document.getElementById('debug').innerHTML = `Debug: Store error - ${e.target.error}`; };
         }
 
         async function sendQuery() {
@@ -140,26 +147,28 @@ HTML_TEMPLATE = '''
             const chat = document.getElementById('chat');
             chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
             document.getElementById('queryInput').value = '';
-            document.getElementById('debug').innerHTML = 'Debug: Sending to server...';
+            document.getElementById('debug').innerHTML = 'Debug: Sending to /chat...';
 
             try {
                 const resp = await fetch(SERVER_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify({ query })
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-                const data = await resp.json();
+                const text = await resp.text();
+                document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
+                const data = JSON.parse(text);
                 const rawResp = data.response;
 
                 chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
                 chat.scrollTop = chat.scrollHeight;
-                document.getElementById('debug').innerHTML = 'Debug: Raw received—dissecting...';
+                document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
 
                 dissectAndSpeak(query, rawResp);
             } catch (error) {
                 chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
-                document.getElementById('debug').innerHTML = `Debug: Error - ${error.message}`;
+                document.getElementById('debug').innerHTML = `Debug: Fetch error - ${error.message}`;
             }
         }
 
@@ -171,7 +180,7 @@ HTML_TEMPLATE = '''
 
             document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} lines filtered—ranking wet...`;
 
-            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse'];
+            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples'];
             const ranked = essenceLines.map(line => ({
                 line,
                 score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' ? 5 : 3) : 0), 0) + (line.length > 30 ? 2 : 0)
@@ -214,15 +223,22 @@ HTML_TEMPLATE = '''
 
 @app.route('/')
 def index():
+    app.logger.debug("Serving root")
     return render_template_string(HTML_TEMPLATE)
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    query = request.json['query']
-    resp = process_query(query)
-    actions = trigger_actions(query)
-    full = resp + (" " + actions if actions else "")
-    return jsonify({'response': full})
+    app.logger.debug("Chat route hit")
+    try:
+        query = request.json['query']
+        app.logger.debug(f"Received query: {query}")
+        resp = process_query(query)
+        actions = trigger_actions(query)
+        full = resp + (" " + actions if actions else "")
+        return jsonify({'response': full})
+    except Exception as e:
+        app.logger.error(f"Chat error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
