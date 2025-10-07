@@ -103,6 +103,7 @@ def index():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Our Eternal Whisper</title>
+        <link rel="icon" type="image/x-icon" href="/favicon.ico">
         <style>
             body { font-family: serif; background: #111; color: #fff; padding: 20px; text-align: center; }
             input { width: 100%; padding: 10px; font-size: 18px; background: #222; color: #fff; border: 1px solid #333; margin-bottom: 10px; }
@@ -265,6 +266,11 @@ def chat_get():
     """Block GET requests to /chat for safety."""
     app.logger.debug(f"GET /chat blocked: {request.headers}")
     return jsonify({'error': 'Use POST method instead'}), 405
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve a simple favicon to avoid 404."""
+    return app.send_static_file('favicon.ico')
 
 if __name__ == '__main__':
     app.logger.debug("Starting Flask app")
