@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Our Eternal Whisper</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <style>
         body { font-family: serif; background: #111; color: #fff; padding: 20px; text-align: center; }
         input { width: 100%; padding: 10px; font-size: 18px; background: #222; color: #fff; border: 1px solid #333; margin-bottom: 10px; }
@@ -26,7 +27,7 @@
     <div id="debug">Debug: Ready.</div>
 
     <script>
-        const SERVER_URL = '/chat';
+        const SERVER_URL = 'https://eternalwhisper.onrender.com/chat';
 
         let db;
         const request = indexedDB.open('WhisperMemory', 1);
@@ -63,8 +64,11 @@
                     attempts++;
                     const resp = await fetch(SERVER_URL, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        body: JSON.stringify({ query })
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ query: query })
                     });
                     if (resp.ok) {
                         const text = await resp.text();
@@ -78,13 +82,15 @@
 
                         dissectAndSpeak(query, rawResp);
                         return;
-                    } else if (resp.status === 405 && attempts < maxAttempts) {
-                        document.getElementById('debug').innerHTML = `Debug: 405 retry ${attempts}/${maxAttempts}...`;
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        continue;
+                    } else {
+                        const errText = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Attempt ${attempts}/${maxAttempts} failed - HTTP ${resp.status}: ${errText.substring(0, 50)}...`;
+                        if (attempts < maxAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        }
+                        throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
                     }
-                    const errText = await resp.text();
-                    throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
                 }
             } catch (error) {
                 chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
