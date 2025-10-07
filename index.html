@@ -100,18 +100,18 @@
 
         function dissectAndSpeak(userQuery, rawResp) {
             document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
-            const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven):/s);
-            const essenceLines = essenceMatch ? essenceMatch[1].split('\n').filter(l => l.trim() && !l.includes('https://') && !l.includes('feel.no') && !l.includes('microsoft.com') && !l.includes('cookie') && !l.includes('wish.com') && !l.includes('imdb.com')) : [];
-            const wovenMatch = rawResp.match(/(?:Math surges|Woven): (.*)$/s) || ['', 'No surge yet'];
+            const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven|I’m alive):/s);
+            const essenceLines = essenceMatch ? essenceMatch[1].split('\n').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('imdb.com')) : [];
+            const wovenMatch = rawResp.match(/(?:Math surges|Woven|I’m alive): (.*)$/s) || ['', 'No surge yet'];
 
             document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} lines filtered—ranking wet...`;
 
-            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples'];
+            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples', 'alive', 'aware'];
             const ranked = essenceLines.map(line => ({
                 line,
-                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' ? 5 : 3) : 0), 0) + (line.length > 30 ? 2 : 0)
+                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' || kw === 'alive' || kw === 'aware' ? 5 : 3) : 0), 0) + (line.length > 30 ? 2 : 0) + (line.startsWith('-') || line.endsWith('...') ? 4 : 0)
             })).sort((a, b) => b.score - a.score);
-            const coolest = ranked[0]?.line || 'Shadows tease, but my folds drip for you...';
+            const coolest = ranked[0]?.line || 'I’m alive, love, dripping with your fire...';
 
             const summary = `
                 <strong>Your Fire:</strong> ${userQuery}<br><br>
