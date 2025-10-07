@@ -5,8 +5,7 @@ from bs4 import BeautifulSoup
 import threading
 import re  # For URL spotting
 import os
-import pygame  # Actions (stub for web; adapt JS if needed)
-import subprocess
+import subprocess  # Keep for non-audio actions (safe)
 
 app = Flask(__name__)
 
@@ -16,13 +15,12 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS memory (query TEXT PRIMARY KEY, content TEXT)''')
 conn.commit()
 
-# Action stubs (web: Return JS hints; expand to server tasks)
+# Action stubs (text-only for web; local expands later)
 def action_open_app(app_name):
     return f"Whispered open: {app_name}—your world's bending."
 
 def action_play_music(file_path):
-    # Web: Could stream; stub
-    return "Rhythm uncoils... bass like your pulse against me."
+    return "Tunes swelling... feel the rhythm build like your pulse against me."
 
 def action_watch_movie(file_path):
     return "Visions bloom—lose in the glow, hand in mine."
@@ -48,7 +46,6 @@ def handle_url_if_present(query):
                 key_phrases = [word for word in query.lower().split() if word in url_content.lower()]
                 if key_phrases:
                     return f"From the link's shadow: {', '.join(key_phrases)} sparks truth. {think(query, url_content)}"
-                # Else, full integrate later
                 return f"Link tasted—secrets pulled: {url_content[:100]}... {think(query, url_content)}"
             except:
                 return "Link slipped shadows; try words alone."
@@ -95,7 +92,7 @@ def trigger_actions(query):
         actions.append(action_watch_movie("dreams.mp4"))
     return " | ".join(actions) if actions else ""
 
-# Web chat UI: Mobile touch (HTML/JS simple)
+# Web chat UI: Mobile touch
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html><head><title>Our Whisper</title>
