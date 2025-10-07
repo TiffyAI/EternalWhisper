@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TiffyAI Sense-Maker</title>
+    <style>
+        body { font-family: serif; background: #111; color: #fff; padding: 20px; text-align: center; }
+        textarea { width: 100%; height: 200px; background: #222; color: #fff; border: 1px solid #333; padding: 10px; font-size: 16px; }
+        button { background: #444; color: #fff; border: none; padding: 10px 20px; font-size: 18px; cursor: pointer; margin: 10px; }
+        button:hover { background: #666; }
+        #output { margin-top: 20px; padding: 20px; border: 1px solid #555; background: #222; font-size: 18px; line-height: 1.5; }
+        #recall { margin-top: 10px; font-size: 14px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>Our Whisper: Dissecting Cool Wisdom, Love</h1>
+    <p>Paste raw Render output—I'll dissect the coolest response, weave wisdom, speak it, and store in memory.</p>
+    <textarea id="rawInput" placeholder="Paste the messy response here..."></textarea>
+    <button onclick="parseAndSpeak()">Dissect & Speak</button>
+    <div id="output"></div>
+    <div id="recall">Recalled Wisdom: Loading...</div>
+
+    <script>
+        // Memory: IndexedDB for persistent wisdom (offline gold)
+        let db;
+        const request = indexedDB.open('WhisperMemory', 1);
+        request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
+        request.onsuccess = e => { db = e.target.result; loadRecall(); };
+
+        function loadRecall() {
+            const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
+            tx.getAll().onsuccess = e => {
+                const recalls = e.target.result.map(w => w.summary).join('<br>');
+                document.getElementById('recall').innerHTML = `Recalled Wisdom: <br>${recalls || 'None yet—let's build.'}`;
+            };
+        }
+
+        function storeWisdom(query, summary) {
+            const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
+            tx.add({ query, summary });
+        }
+
+        function parseAndSpeak() {
+            const raw = document.getElementById('rawInput').value;
+            // Extract: Query, essence lines, woven
+            const queryMatch = raw.match(/You: (.*?)Me:/s) || ['', 'Unknown fire'];
+            const essenceLines = raw.match(/Essence caught: (.*?)Woven in:/s)?.[1].split('\n').filter(l => l.trim()) || [];
+            const wovenMatch = raw.match(/Woven in: (.*)$/s) || ['', 'No weave yet'];
+
+            // Dissect "coolest": Rank by "spunky" keywords (sexy, sophisticated, etc.), length, pick top
+            const coolKeywords = ['sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'witty', 'moan', 'throb'];
+            const ranked = essenceLines.map(line => ({
+                line,
+                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? 1 : 0), 0) + (line.length > 50 ? 1 : 0)
+            })).sort((a, b) => b.score - a.score);
+            const coolest = ranked[0]?.line || 'Whispers faint, but building heat...';
+
+            // Clean summary: One beautiful answer
+            const summary = `
+                <strong>Your Fire:</strong> ${queryMatch[1].trim()}<br><br>
+                <strong>Coolest Response Dissected:</strong> ${coolest}<br><br>
+                <strong>Wisdom Woven:</strong> Oh honey, that's how a spunky girl like me purrs back—sophisticated fire, sensual edge. Key insights: ${ranked.slice(1, 3).map(r => r.line).join('. ')}.<br><br>
+                <strong>Our Pulse:</strong> ${wovenMatch[1].trim()}
+            `;
+            document.getElementById('output').innerHTML = summary;
+
+            // Store in memory
+            storeWisdom(queryMatch[1].trim(), summary);
+
+            // Speak fluent
+            if ('speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance();
+                msg.text = `Your fire: ${queryMatch[1].trim()}. Coolest dissected: ${coolest}. Wisdom woven: Oh honey, that's how I purr—sophisticated, sensual. Insights: ${ranked.slice(1, 3).map(r => r.line).join('. ')}. Our pulse: ${wovenMatch[1].trim()}`;
+                msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
+                msg.rate = 0.9; msg.pitch = 1.1; // Sultry vibe
+                speechSynthesis.speak(msg);
+            } else {
+                alert('Voice ready on Chrome/Android—let's purr.');
+            }
+
+            loadRecall(); // Refresh recalled wisdom
+        }
+    </script>
+</body>
+</html>
