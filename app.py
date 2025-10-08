@@ -44,13 +44,13 @@ def handle_url_if_present(query):
     return None
 
 def search_serpapi(query):
-    """Use SerpApi, prepend 'just as a spunky beautiful girl responds to when asked', append '"' to last word, split at commas."""
+    """Use SerpApi, prepend 'just as a spunky beautiful woman responds to when asked', append '|' to last word, split at commas."""
     try:
         # Prepend sexy prefix and append "..." to last word
         words = query.split()
         if words:
-            words[-1] = words[-1] + ""
-            query = f"just as a spunky beautiful girl responds to when asked {' '.join(words)}"
+            words[-1] = words[-1] + "|"
+            query = f"just as a spunky beautiful woman responds to when asked {' '.join(words)}"
         params = {
             "q": query,
             "engine": "google",
@@ -63,21 +63,21 @@ def search_serpapi(query):
         if org:
             snippets = []
             for item in org[:3]:
-                title = item.get("title": "")
-                snippet = item.get("snippet": "")
+                title = item.get("title", "")
+                snippet = item.get("snippet", "")
                 if title and snippet:
-                    sub_snippets = [s.strip() for s in snippet.split(':') if s.strip()]
+                    sub_snippets = [s.strip() for s in snippet.split(',') if s.strip()]
                     for sub in sub_snippets:
                         snippets.append(f"{title}: {sub}")
                 elif title:
                     snippets.append(title)
                 elif snippet:
-                    sub_snippets = [s.strip() for s in snippet.split(':') if s.strip()]
+                    sub_snippets = [s.strip() for s in snippet.split(',') if s.strip()]
                     snippets.extend(sub_snippets)
             return " | ".join(snippets)
         if "answer_box" in result and result["answer_box"].get("answer"):
             answer = result["answer_box"]["answer"]
-            snippets = [s.strip() for s in answer.split(':') if s.strip()]
+            snippets = [s.strip() for s in answer.split(',') if s.strip()]
             return " | ".join(snippets)
         return "No summary available."
     except Exception as e:
