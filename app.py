@@ -1,5 +1,6 @@
 from flask import Flask, render_template_string, request, jsonify, send_from_directory
 from flask_cors import CORS
+from serpapi import GoogleSearch
 import sqlite3
 import requests
 import re
@@ -26,31 +27,72 @@ def summarize_text(text, limit=200):
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     return ' '.join(lines)[:limit] + "..." if lines else "No whispers caught, love."
 
-def search_duckduckgo(query):
-    """Free search using DuckDuckGo’s public Instant Answer API."""
-    import requests
+from serpapi import GoogleSearch  # at top with your imports
+
+def search_serpapi(query):
+    """Use SerpApi to fetch search results via Google (or other engine)."""
     try:
-        url = f"https://api.duckduckgo.com/?q={query}&format=json&no_redirect=1&no_html=1"
-        resp = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
-        data = resp.json()
-        if data.get("AbstractText"):
-            return data["AbstractText"]
-        if data.get("RelatedTopics"):
-            topics = []
-            for t in data["RelatedTopics"]:
-                if isinstance(t, dict) and "Text" in t:
-                    topics.append(t["Text"])
-                elif "Topics" in t:
-                    for sub in t["Topics"]:
-                        if "Text" in sub:
-                            topics.append(sub["Text"])
-                if len(topics) >= 3:
-                    break
-            return " • ".join(topics) if topics else "No direct answer found."
+        params = {
+            "q": query,
+            "engine": "google",  # or “bing” etc if you prefer
+            "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
+            "num": 3  # number of results you want (you can adjust)
+        }
+        search = GoogleSearch(params)
+        result = search.get_dict()
+        # Get organic results
+        org = result.get("organic_results", [])
+        if org:
+            # Build a summary: title + snippet for first few
+            snippets = []
+            for item in org[:3]:
+                title = item.get("title", "")
+                snippet = item.get("snippet", "")
+                if title and snippet:
+                    snippets.append(f"{title}: {snippet}")
+                elif title:
+                    snippets.append(title)
+                elif snippet:
+                    snippets.append(snippet)
+            return " | ".join(snippets)
+        # fallback if no organic
+        if "answer_box" in result and result["answer_box"].get("answer"):
+            return result["answer_box"]["answer"]
         return "No summary available."
     except Exception as e:
-        # 👇 This line must be indented under the except
-        return f"(offline) Unable to reach search API. {str(e)}"
+        return f"(offline) SerpApi error: {str(e)}"
+
+def process_query(query):
+    app.logger.debug(f"Processing query: {query}")
+    url_resp = handle_url_if_present(query)
+    if url_resp:
+        return f"{url_resp} {think(query, url_resp)}"
+
+    # Check memory first
+    try:
+        c.execute("SELECT content FROM memory WHERE query=?", (query.lower(),))
+        row = c.fetchone()
+        if row:
+            app.logger.debug("Using cached memory.")
+            return f"Depths: {row[0][:80]}... {think(query, row[0])}"
+    except Exception as e:
+        app.logger.error(f"Memory lookup failed: {e}")
+
+    # If not cached, run SerpApi
+    summary = search_serpapi(query)
+    app.logger.debug(f"SerpApi summary: {summary[:100]}")
+
+    # Cache it
+    try:
+        c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (query.lower(), summary))
+        conn.commit()
+    except Exception as e:
+        app.logger.error(f"Memory insert error: {e}")
+
+    # Format a “scan response” prefix if you want
+    fragments = [frag.strip() for frag in summary.split("|") if frag.strip()]
+    scan_resp = f"Essence caught: {' | '.join(fragments[:2])}" if fragments else f"Essence caught: {summary}"
+    return f"{scan_resp} {think(query, summary)}"
 
 def think(query, content):
     query_lower = query.lower()
