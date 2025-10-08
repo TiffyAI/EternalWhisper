@@ -28,6 +28,7 @@ def summarize_text(text, limit=200):
 
 def search_duckduckgo(query):
     """Free search using DuckDuckGo’s public Instant Answer API."""
+    import requests
     try:
         url = f"https://api.duckduckgo.com/?q={query}&format=json&no_redirect=1&no_html=1"
         resp = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
@@ -48,8 +49,8 @@ def search_duckduckgo(query):
             return " • ".join(topics) if topics else "No direct answer found."
         return "No summary available."
     except Exception as e:
-    return f"(offline) Unable to reach search API. {str(e)}"
-
+        # 👇 This line must be indented under the except
+        return f"(offline) Unable to reach search API. {str(e)}"
 
 def think(query, content):
     query_lower = query.lower()
