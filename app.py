@@ -44,13 +44,13 @@ def handle_url_if_present(query):
     return None
 
 def search_serpapi(query):
-    """Use SerpApi, prepend 'poetic girl response when asked', append '...' to last word, split at commas."""
+    """Use SerpApi, prepend 'girl response when asked', append '...' to last word, split at commas."""
     try:
         # Prepend sexy prefix and append "..." to last word
         words = query.split()
         if words:
             words[-1] = words[-1] + "..."
-            query = "poetic girl responds when asked {' '.join(words)}"
+            query = "girl responds when asked {' '.join(words)}"
         params = {
             "q": query,
             "engine": "google",
