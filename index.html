@@ -136,7 +136,9 @@
                 msg.text = `i heard ${userQuery}. Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
                 msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
                 msg.rate = 1.0; msg.pitch = 85;
-                speechSynthesis.speak(${wovenMatch[1].trim()});
+                speechSynthesis.speak(msg)
+                
+                ;
             } else {
                 document.getElementById('output').innerHTML += '<br><small>Voice drips on Chrome.</small>';
             }
