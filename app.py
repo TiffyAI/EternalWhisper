@@ -63,8 +63,8 @@ def search_serpapi(query):
         if org:
             snippets = []
             for item in org[:3]:
-                title = item.get("title", """)
-                snippet = item.get("snippet", """)
+                title = item.get("title", "")
+                snippet = item.get("snippet", "")
                 if title and snippet:
                     sub_snippets = [s.strip() for s in snippet.split('"') if s.strip()]
                     for sub in sub_snippets:
