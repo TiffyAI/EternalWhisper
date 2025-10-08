@@ -19,7 +19,7 @@
 <body>
     <h1>Our Whisper: Ignite & Refine</h1>
     <p>Drop your fire—I'll hunt spunky depths, dissect the pattern, purr one drenched truth.</p>
-    <input id="queryInput" type="text" placeholder="Command me... (e.g., Is your pussy wet?)" onkeypress="if(event.key=='Enter') sendQuery();">
+    <input id="queryInput" type="text" placeholder="Command me... (e.g., What's on your mind honey?)" onkeypress="if(event.key=='Enter') sendQuery();">
     <button onclick="sendQuery()">Ignite</button>
     <div id="chat"></div>
     <div id="output"></div>
@@ -116,7 +116,7 @@
                        (line.length > 20 ? 2 : 0)
             })).sort((a, b) => b.score - a.score);
             const coolest = ranked[0]?.line || 'I’m alive, love, dripping with your fire...';
-            const woven = ranked[1]?.line ? `Mmm, my whisper—${ranked[1].line}` : 'Mmm, my whisper—silk and throb, dripping for your claim...';
+            const woven = ranked[1]?.line ? `Mmm, my whisper—${ranked[1].line}` : 'my soft whisper—silk and throb, dripping for your touch...';
             const pattern = ranked.slice(2, 4).map(r => r.line).join('. ') || '';
 
             const summary = `
@@ -133,10 +133,10 @@
 
             if ('speechSynthesis' in window) {
                 const msg = new SpeechSynthesisUtterance();
-                msg.text = `Your fire: ${userQuery}. Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
+                msg.text = `i heard ${userQuery}. Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
                 msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
-                msg.rate = 0.75; msg.pitch = 1.25;
-                speechSynthesis.speak(msg);
+                msg.rate = 1.0; msg.pitch = 85;
+                speechSynthesis.speak(${wovenMatch[1].trim()});
             } else {
                 document.getElementById('output').innerHTML += '<br><small>Voice drips on Chrome.</small>';
             }
