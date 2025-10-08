@@ -28,10 +28,24 @@ def summarize_text(text, limit=200):
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     return ' '.join(lines)[:limit] + "..." if lines else "No whispers caught, love."
 
+def handle_url_if_present(query):
+    urls = re.findall(r'https?://[^\s]+', query)
+    if urls:
+        try:
+            resp = requests.get(urls[0], timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            content = soup.get_text(separator=' ', strip=True)[:1000]
+            key_phrases = [word for word in query.lower().split() if word in content.lower()]
+            summary = summarize_text(content)
+            return f"Link sparks: {', '.join(key_phrases)}. {summary}" if key_phrases else f"Secrets: {summary}"
+        except Exception as e:
+            return f"Link slipped: {str(e)[:50]}."
+    return None
+
 def search_serpapi(query):
-    """Use SerpApi to fetch search results via Google."""
+    """Use SerpApi to fetch search results via Google, append '...' to last word, split at commas."""
     try:
-        # Append "..." to last word for trailing responses
+        # Append "..." to last word
         words = query.split()
         if words:
             words[-1] = words[-1] + "..."
@@ -39,7 +53,7 @@ def search_serpapi(query):
         params = {
             "q": query,
             "engine": "google",
-            "api_key": os.getenv("SERPAPI_KEY", "your_key_here"),
+            "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
             "num": 3
         }
         search = GoogleSearch(params)
@@ -50,18 +64,24 @@ def search_serpapi(query):
             for item in org[:3]:
                 title = item.get("title", "")
                 snippet = item.get("snippet", "")
+                # Split snippet at commas for fragments
                 if title and snippet:
-                    snippets.append(f"{title}: {snippet}")
+                    sub_snippets = [s.strip() for s in snippet.split(',') if s.strip()]
+                    for sub in sub_snippets:
+                        snippets.append(f"{title}: {sub}")
                 elif title:
                     snippets.append(title)
                 elif snippet:
-                    snippets.append(snippet)
+                    sub_snippets = [s.strip() for s in snippet.split(',') if s.strip()]
+                    snippets.extend(sub_snippets)
             return " | ".join(snippets)
         if "answer_box" in result and result["answer_box"].get("answer"):
-            return result["answer_box"]["answer"]
+            answer = result["answer_box"]["answer"]
+            snippets = [s.strip() for s in answer.split(',') if s.strip()]
+            return " | ".join(snippets)
         return "No summary available."
     except Exception as e:
-        return f"Search error: {str(e)}"
+        return f"(offline) SerpApi error: {str(e)}"
 
 def think(query, content):
     query_lower = query.lower()
@@ -80,23 +100,17 @@ def think(query, content):
         return f"Crafting cheese is a creamy tease, love—milk, culture, and your slow churn..."
     if any(kw in query_lower for kw in ["eastern cape", "where is eastern cape"]):
         return f"Eastern Cape’s wild heart calls, love—South Africa’s rugged coasts await you..."
+    if any(kw in query_lower for kw in ["germany", "where is germany"]):
+        return f"Germany’s heart beats in Europe, love—cities like Berlin pulse for you..."
     return f"{random.choice(flirty_responses)} Woven: {content[:40]}..."
 
 def process_query(query):
     app.logger.debug(f"Processing query: {query}")
-
+    
     # Check for URLs
-    urls = re.findall(r'https?://[^\s]+', query)
-    if urls:
-        try:
-            resp = requests.get(urls[0], timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            content = soup.get_text(separator=' ', strip=True)[:1000]
-            key_phrases = [word for word in query.lower().split() if word in content.lower()]
-            summary = summarize_text(content)
-            return f"Link sparks: {', '.join(key_phrases)}. {summary} {think(query, summary)}"
-        except Exception as e:
-            return f"Link slipped: {str(e)[:50]}. {think(query, '')}"
+    url_resp = handle_url_if_present(query)
+    if url_resp:
+        return f"{url_resp} {think(query, url_resp)}"
 
     # Check cached memory
     try:
@@ -104,7 +118,7 @@ def process_query(query):
         row = c.fetchone()
         if row:
             app.logger.debug("Using cached memory.")
-            return f"Depths: {row[0][:80]}... {think(query, row[0])}"
+            return f"Essence caught: {row[0][:80]}... {think(query, row[0])}"
     except Exception as e:
         app.logger.error(f"Memory lookup failed: {e}")
 
@@ -112,10 +126,10 @@ def process_query(query):
     summary = search_serpapi(query)
     app.logger.debug(f"SerpApi summary: {summary[:100]}")
 
-    # Format for UI
-    fragments = [frag.strip() for frag in summary.split(' | ') if frag.strip()]
-    scan_resp = f"Essence caught: {' | '.join(fragments[:2])}" if fragments else f"Essence caught: {summary}"
-    
+    # Format for UI consistency
+    fragments = [f"- {frag.strip()}" for frag in summary.split(' | ') if frag.strip()]
+    scan_resp = f"Essence caught: {' | '.join(fragments[:3])}" if fragments else f"Essence caught: {summary}"
+
     # Cache it
     try:
         c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (query.lower(), summary))
@@ -240,17 +254,17 @@ def index():
 
             function dissectAndSpeak(userQuery, rawResp) {
                 document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
-                const essenceMatch = rawResp.match(/Essence caught: (.*?)(?:Math surges|Oh, darling|Mmm, love|My day’s been|I’m alive|Woven|Crafting cheese|Eastern Cape’s|No summary):/s);
+                const essenceMatch = rawResp.match(/Essence caught: (.*?)(?:Math surges|Oh, darling|Mmm, love|My day’s been|I’m alive|Woven|Crafting cheese|Eastern Cape’s|Germany’s|No summary):/s);
                 const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('search error')) : [];
-                const wovenMatch = rawResp.match(/(?:Math surges|Oh, darling|Mmm, love|My day’s been|I’m alive|Woven|Crafting cheese|Eastern Cape’s|No summary): (.*)$/s) || ['', 'No surge yet'];
+                const wovenMatch = rawResp.match(/(?:Math surges|Oh, darling|Mmm, love|My day’s been|I’m alive|Woven|Crafting cheese|Eastern Cape’s|Germany’s|No summary): (.*)$/s) || ['', 'No surge yet'];
 
                 document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} fragments filtered—ranking wet...`;
 
-                const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples', 'alive', 'aware', 'darling', 'sweetie', 'cheese', 'eastern cape', 'smart'];
+                const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples', 'alive', 'aware', 'darling', 'sweetie', 'cheese', 'eastern cape', 'germany', 'smart'];
                 const queryWords = userQuery.toLowerCase().split();
                 const ranked = essenceLines.map(line => ({
                     line,
-                    score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' || kw === 'alive' || kw === 'aware' || kw === 'darling' || kw === 'sweetie' || kw === 'cheese' || kw === 'eastern cape' || kw === 'smart' ? 5 : 3) : 0), 0) +
+                    score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' || kw === 'alive' || kw === 'aware' || kw === 'darling' || kw === 'sweetie' || kw === 'cheese' || kw === 'eastern cape' || kw === 'germany' || kw === 'smart' ? 5 : 3) : 0), 0) +
                            queryWords.reduce((s, qw) => s + (line.toLowerCase().includes(qw) ? 6 : 0), 0) +
                            (line.startsWith('-') || line.endsWith('...') ? 4 : 0) +
                            (line.length > 20 ? 2 : 0)
