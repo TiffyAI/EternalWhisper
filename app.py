@@ -30,7 +30,7 @@ def search_duckduckgo(query):
     """Free search using DuckDuckGo’s public Instant Answer API."""
     try:
         url = f"https://api.duckduckgo.com/?q={query}&format=json&no_redirect=1&no_html=1"
-        resp = requests.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
+        resp = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
         data = resp.json()
         if data.get("AbstractText"):
             return data["AbstractText"]
@@ -48,7 +48,8 @@ def search_duckduckgo(query):
             return " • ".join(topics) if topics else "No direct answer found."
         return "No summary available."
     except Exception as e:
-        return f"Search error: {str(e)}"
+    return f"(offline) Unable to reach search API. {str(e)}"
+
 
 def think(query, content):
     query_lower = query.lower()
