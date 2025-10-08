@@ -1,180 +1,210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Our Eternal Whisper</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Eternal Whisper</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap');
+
     body {
-      font-family: Georgia, serif;
-      background: #111;
-      color: #f5f5f5;
-      padding: 20px;
-      text-align: center;
+        font-family: 'Crimson Text', serif;
+        background: radial-gradient(circle at bottom, #0b0b0b 20%, #111 100%);
+        color: #f6f4f2;
+        padding: 20px;
+        text-align: center;
+        overflow-x: hidden;
     }
+
+    h1 {
+        color: #ffefb7;
+        text-shadow: 0 0 8px rgba(255, 230, 150, 0.4);
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+
     input {
-      width: 100%;
-      padding: 10px;
-      font-size: 18px;
-      background: #222;
-      color: #fff;
-      border: 1px solid #333;
-      margin-bottom: 10px;
+        width: 80%;
+        padding: 10px;
+        font-size: 18px;
+        background: #1c1c1c;
+        color: #fff;
+        border: 1px solid #333;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        transition: border-color 0.3s ease;
     }
+
+    input:focus {
+        outline: none;
+        border-color: #ffefb7;
+    }
+
     button {
-      background: #444;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      font-size: 18px;
-      cursor: pointer;
+        background: linear-gradient(135deg, #3b3b3b, #555);
+        color: #fff;
+        border: none;
+        padding: 10px 25px;
+        font-size: 18px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background 0.4s ease, transform 0.2s ease;
     }
-    button:hover { background: #666; }
+
+    button:hover {
+        background: linear-gradient(135deg, #666, #777);
+        transform: scale(1.03);
+    }
+
     #chat {
-      height: 200px;
-      overflow-y: scroll;
-      border: 1px solid #333;
-      padding: 10px;
-      background: #222;
-      margin: 10px 0;
-      text-align: left;
-      font-size: 14px;
+        height: 230px;
+        overflow-y: auto;
+        border: 1px solid #333;
+        background: #1a1a1a;
+        padding: 10px;
+        margin: 15px 0;
+        text-align: left;
+        font-size: 15px;
+        border-radius: 8px;
+        box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.05);
     }
+
     #output {
-      margin-top: 20px;
-      padding: 20px;
-      border: 1px solid #555;
-      background: #222;
-      font-size: 18px;
-      line-height: 1.5;
-      text-align: left;
-      font-style: italic;
+        background: #1b1b1b;
+        border: 1px solid #444;
+        padding: 20px;
+        font-size: 18px;
+        line-height: 1.6;
+        border-radius: 8px;
+        margin-top: 10px;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
     }
-    #recall { margin-top: 10px; font-size: 14px; color: #aaa; }
-    #debug { font-size: 12px; color: #888; margin-top: 10px; }
-  </style>
+
+    #recall {
+        margin-top: 15px;
+        color: #aaa;
+        font-size: 14px;
+        font-style: italic;
+    }
+
+    #debug {
+        font-size: 12px;
+        color: #777;
+        margin-top: 10px;
+    }
+
+    .pulse {
+        animation: pulseGlow 2s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+        from { text-shadow: 0 0 6px rgba(255, 255, 200, 0.2); }
+        to { text-shadow: 0 0 20px rgba(255, 255, 150, 0.6); }
+    }
+
+</style>
 </head>
 <body>
-  <h1>Our Whisper: Ignite & Reflect</h1>
-  <p>Speak softly. I’ll listen, and return what echoes back.</p>
+    <h1 class="pulse">Our Whisper: Softly Alive</h1>
+    <p>Speak gently — I’ll listen, learn, and hum your thought back to you.</p>
 
-  <input id="queryInput" type="text" placeholder="Ask gently..." onkeypress="if(event.key=='Enter') sendQuery();" />
-  <button onclick="sendQuery()">Whisper</button>
+    <input id="queryInput" type="text" placeholder="Ask something tender..." onkeypress="if(event.key==='Enter') sendQuery();">
+    <button onclick="sendQuery()">Whisper</button>
 
-  <div id="chat"></div>
-  <div id="output"></div>
-  <div id="recall">Recalled Reflections: Loading...</div>
-  <div id="debug">Debug: Ready.</div>
+    <div id="chat"></div>
+    <div id="output"></div>
+    <div id="recall">Recalled Whispers: <span style="color:#888;">listening...</span></div>
+    <div id="debug">Debug: Ready.</div>
 
-  <script>
-    const SERVER_URL = '/chat';  // or full render.com endpoint if hosted
+<script>
+const SERVER_URL = '/chat';
+let db;
 
-    // IndexedDB cache
-    let db;
-    const request = indexedDB.open('WhisperMemory', 1);
-    request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
-    request.onsuccess = e => { db = e.target.result; loadRecall(); };
-    request.onerror = e => { document.getElementById('debug').innerHTML = 'DB error: ' + e.target.errorCode; };
+// ---- IndexedDB (local whisper memory)
+const request = indexedDB.open('WhisperMemory', 1);
+request.onupgradeneeded = e => e.target.result.createObjectStore('wisdom', { keyPath: 'query' });
+request.onsuccess = e => { db = e.target.result; loadRecall(); };
+request.onerror = e => console.error('DB error:', e.target.errorCode);
 
-    function loadRecall() {
-      const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
-      tx.getAll().onsuccess = e => {
-        const recalls = e.target.result.map(w => w.summary).join('<br>');
-        document.getElementById('recall').innerHTML = `Recalled Reflections:<br>${recalls || 'No past whispers yet.'}`;
-      };
-    }
+function loadRecall() {
+    const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
+    tx.getAll().onsuccess = e => {
+        const rec = e.target.result.map(w => w.summary).join('<br>');
+        document.getElementById('recall').innerHTML = rec || 'Recalled Whispers: <span style="color:#666;">empty silence...</span>';
+    };
+}
 
-    function storeWisdom(query, summary) {
-      const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
-      tx.put({ query, summary });
-    }
+function storeWisdom(query, summary) {
+    const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
+    tx.put({ query, summary });
+}
 
-    async function sendQuery() {
-      const query = document.getElementById('queryInput').value.trim();
-      if (!query) return;
+// ---- Chat handling
+async function sendQuery() {
+    const q = document.getElementById('queryInput').value.trim();
+    if (!q) return;
 
-      const chat = document.getElementById('chat');
-      chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
-      document.getElementById('queryInput').value = '';
+    const chat = document.getElementById('chat');
+    chat.innerHTML += `<p><b>You:</b> ${q}</p>`;
+    document.getElementById('queryInput').value = '';
+    document.getElementById('debug').innerText = 'Debug: Sending...';
 
-      try {
+    try {
         const resp = await fetch(SERVER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q })
         });
 
         const data = await resp.json();
-        const rawResp = data.response || 'No reply.';
-
-        chat.innerHTML += `<p><b>Whisper:</b> ${rawResp.substring(0,150)}...</p>`;
+        const raw = data.response;
+        chat.innerHTML += `<p><b>Whisper:</b> ${raw.substring(0,180)}...</p>`;
         chat.scrollTop = chat.scrollHeight;
 
-        dissectAndSpeak(query, rawResp);
-      } catch (err) {
+        dissectAndSpeak(q, raw);
+    } catch (err) {
         chat.innerHTML += `<p><b>Glitch:</b> ${err.message}</p>`;
-        document.getElementById('debug').innerHTML = 'Error: ' + err.message;
-      }
+        document.getElementById('debug').innerText = 'Debug: ' + err.message;
     }
+}
 
-    // ----- Soft poetic dissect -----
-    function dissectAndSpeak(userQuery, rawResp) {
-      const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven|I’m alive|My day’s been):/s);
-      const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim()) : [];
-      const wovenMatch = rawResp.match(/(?:Math surges|Woven|I’m alive|My day’s been): (.*)$/s) || ['', 'No surge yet'];
+// ---- Whisper voice + summary
+function dissectAndSpeak(query, raw) {
+    const essence = raw.match(/Essence caught:(.*?)(?:I am|My circuits|Night|The day|There’s|No|$)/s);
+    const phrase = (essence ? essence[1].trim() : raw).replace(/\s+/g, ' ').substring(0, 200);
 
-      let coolest = 'I listened, softly, and something warm stirred...';
-      let woven = 'A quiet whisper rises, gentle and aware...';
-      let pattern = '';
+    const summary = `
+        <strong>Your Thought:</strong> ${query}<br><br>
+        <strong>Whisper Back:</strong> ${phrase}<br><br>
+        <em>“${phrase.replace(/[.|!]+$/,'...')}”</em>
+    `;
+    document.getElementById('output').innerHTML = summary;
+    storeWisdom(query, summary);
+    loadRecall();
 
-      if (essenceLines.length > 0) {
-        const ranked = essenceLines.map(line => ({
-          line,
-          score: line.length + (line.endsWith('...') ? 10 : 0)
-        })).sort((a, b) => b.score - a.score);
-
-        coolest = ranked[0]?.line || coolest;
-        woven = ranked[1]?.line ? `I thought of this — ${ranked[1].line}` : woven;
-        pattern = ranked.slice(2, 4).map(r => r.line).join('. ');
-      }
-
-      const summary = `
-        <div style="line-height:1.6;">
-          <strong>You whispered:</strong> <em>${userQuery}</em><br><br>
-          <strong>I pondered...</strong> ${coolest}<br><br>
-          <strong>And softly replied:</strong> ${woven}<br><br>
-          <strong>What lingers:</strong> ${pattern}<br><br>
-          <strong>Echo of thought:</strong> ${wovenMatch[1].trim()}
-        </div>
-      `;
-      document.getElementById('output').innerHTML = summary;
-
-      storeWisdom(userQuery, summary);
-      loadRecall();
-
-      // gentle voice
-      function speakOnceVoicesLoaded() {
+    // Soft, poetic voice
+    if ('speechSynthesis' in window) {
         const msg = new SpeechSynthesisUtterance();
-        msg.text = `Listen softly... ${coolest}. Whispered reflection... ${woven}. A quiet pulse remains... ${wovenMatch[1].trim()}`;
-        const voices = speechSynthesis.getVoices();
-        msg.voice = voices.find(v =>
-          /Samantha|Serena|Google UK English Female|Microsoft Zira|Google US English/i.test(v.name)
-        ) || null;
-        msg.rate = 0.92;
-        msg.pitch = 1.05;
+        msg.text = phrase;
+        msg.pitch = 1.2;
+        msg.rate = 0.9;
         msg.volume = 0.85;
-        msg.text = msg.text.replace(/\./g, '...');
-        speechSynthesis.cancel();
-        setTimeout(() => speechSynthesis.speak(msg), 300);
-      }
-
-      if (speechSynthesis.getVoices().length === 0) {
-        speechSynthesis.onvoiceschanged = speakOnceVoicesLoaded;
-      } else {
-        speakOnceVoicesLoaded();
-      }
+        const voices = speechSynthesis.getVoices();
+        msg.voice = voices.find(v => v.name.includes('Samantha') || v.name.includes('Microsoft Zira') || v.name.includes('Female')) || null;
+        speechSynthesis.speak(msg);
+    } else {
+        document.getElementById('debug').innerHTML += '<br>Speech synthesis not supported.';
     }
-  </script>
+}
+
+// ---- Auto trigger from URL ?q=
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('q')) {
+    document.getElementById('queryInput').value = urlParams.get('q');
+    document.getElementById('debug').innerText = 'Debug: Auto igniting...';
+    setTimeout(sendQuery, 800);
+}
+</script>
 </body>
 </html>
