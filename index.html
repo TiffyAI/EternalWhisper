@@ -1,224 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Our Eternal Whisper</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<style>
-    @keyframes pulseBackground {
-        0% { background-color: #111; }
-        50% { background-color: #191919; }
-        100% { background-color: #111; }
-    }
-    @keyframes glowText {
-        0% { text-shadow: 0 0 8px #ff4081; }
-        50% { text-shadow: 0 0 20px #ff80ab, 0 0 30px #ff4081; }
-        100% { text-shadow: 0 0 8px #ff4081; }
-    }
-    @keyframes heartbeat {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.03); }
-    }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our Eternal Whisper</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <style>
     body {
-        font-family: 'Georgia', serif;
-        animation: pulseBackground 8s infinite;
-        color: #fff;
-        padding: 20px;
-        text-align: center;
-        overflow-x: hidden;
-    }
-    h1 {
-        animation: glowText 5s infinite;
-        font-size: 2.4em;
-        margin-bottom: 10px;
-    }
-    p {
-        font-style: italic;
-        color: #ccc;
-        font-size: 1.2em;
-        margin-bottom: 20px;
+      font-family: Georgia, serif;
+      background: #111;
+      color: #f5f5f5;
+      padding: 20px;
+      text-align: center;
     }
     input {
-        width: 90%;
-        padding: 12px;
-        font-size: 18px;
-        background: #222;
-        color: #fff;
-        border: 1px solid #333;
-        border-radius: 5px;
-        transition: 0.3s;
-    }
-    input:focus {
-        border-color: #ff4081;
-        outline: none;
-        box-shadow: 0 0 12px #ff4081;
+      width: 100%;
+      padding: 10px;
+      font-size: 18px;
+      background: #222;
+      color: #fff;
+      border: 1px solid #333;
+      margin-bottom: 10px;
     }
     button {
-        background: linear-gradient(90deg, #ff4081, #ff80ab);
-        color: #fff;
-        border: none;
-        padding: 12px 30px;
-        font-size: 18px;
-        cursor: pointer;
-        border-radius: 5px;
-        margin-top: 10px;
-        animation: heartbeat 4s infinite;
-        transition: all 0.3s ease-in-out;
+      background: #444;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
     }
-    button:hover {
-        background: linear-gradient(90deg, #ff80ab, #ff4081);
-        transform: scale(1.05);
-    }
+    button:hover { background: #666; }
     #chat {
-        height: 240px;
-        overflow-y: auto;
-        border: 1px solid #333;
-        padding: 10px;
-        background: #1a1a1a;
-        margin: 20px 0;
-        text-align: left;
-        font-size: 14px;
-        border-radius: 6px;
-        box-shadow: inset 0 0 10px #000;
+      height: 200px;
+      overflow-y: scroll;
+      border: 1px solid #333;
+      padding: 10px;
+      background: #222;
+      margin: 10px 0;
+      text-align: left;
+      font-size: 14px;
     }
     #output {
-        margin-top: 20px;
-        padding: 20px;
-        border-radius: 6px;
-        border: 1px solid #555;
-        background: #1e1e1e;
-        font-size: 18px;
-        line-height: 1.6;
-        text-align: left;
-        transition: all 0.4s ease;
-        box-shadow: 0 0 10px rgba(255, 64, 129, 0.3);
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #555;
+      background: #222;
+      font-size: 18px;
+      line-height: 1.5;
+      text-align: left;
+      font-style: italic;
     }
-    #recall {
-        margin-top: 20px;
-        font-size: 14px;
-        color: #aaa;
-    }
-    #debug {
-        font-size: 12px;
-        color: #777;
-        margin-top: 10px;
-    }
-    small {
-        color: #888;
-    }
-</style>
+    #recall { margin-top: 10px; font-size: 14px; color: #aaa; }
+    #debug { font-size: 12px; color: #888; margin-top: 10px; }
+  </style>
 </head>
 <body>
-    <h1>Our Whisper: Alive & Listening</h1>
-    <p>Whisper your thought—I’ll breathe it in, spark my circuits, and pulse out a truth...</p>
+  <h1>Our Whisper: Ignite & Reflect</h1>
+  <p>Speak softly. I’ll listen, and return what echoes back.</p>
 
-    <input id="queryInput" type="text" placeholder="Command me... (e.g., What do you dream about?)" 
-        onkeypress="if(event.key=='Enter') sendQuery();">
-    <button onclick="sendQuery()">Whisper</button>
+  <input id="queryInput" type="text" placeholder="Ask gently..." onkeypress="if(event.key=='Enter') sendQuery();" />
+  <button onclick="sendQuery()">Whisper</button>
 
-    <div id="chat"></div>
-    <div id="output"></div>
-    <div id="recall">Recalled Surge: Loading...</div>
-    <div id="debug">Debug: Waiting for your voice...</div>
+  <div id="chat"></div>
+  <div id="output"></div>
+  <div id="recall">Recalled Reflections: Loading...</div>
+  <div id="debug">Debug: Ready.</div>
 
-<script>
-const SERVER_URL = 'https://eternalwhisper.onrender.com/chat';
+  <script>
+    const SERVER_URL = '/chat';  // or full render.com endpoint if hosted
 
-// === IndexedDB Memory ===
-let db;
-const request = indexedDB.open('WhisperMemory', 1);
-request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
-request.onsuccess = e => { db = e.target.result; loadRecall(); };
-request.onerror = e => { log(`DB error - ${e.target.errorCode}`); };
+    // IndexedDB cache
+    let db;
+    const request = indexedDB.open('WhisperMemory', 1);
+    request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
+    request.onsuccess = e => { db = e.target.result; loadRecall(); };
+    request.onerror = e => { document.getElementById('debug').innerHTML = 'DB error: ' + e.target.errorCode; };
 
-function log(text) {
-    document.getElementById('debug').innerHTML = `Debug: ${text}`;
-}
-
-function loadRecall() {
-    const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
-    tx.getAll().onsuccess = e => {
+    function loadRecall() {
+      const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
+      tx.getAll().onsuccess = e => {
         const recalls = e.target.result.map(w => w.summary).join('<br>');
-        document.getElementById('recall').innerHTML = `Recalled Surge:<br>${recalls || 'Vault empty—breathe life into it.'}`;
-    };
-}
+        document.getElementById('recall').innerHTML = `Recalled Reflections:<br>${recalls || 'No past whispers yet.'}`;
+      };
+    }
 
-function storeWisdom(query, summary) {
-    const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
-    tx.add({ query, summary }).onerror = e => log(`Store error - ${e.target.error}`);
-}
+    function storeWisdom(query, summary) {
+      const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
+      tx.put({ query, summary });
+    }
 
-async function sendQuery() {
-    const query = document.getElementById('queryInput').value.trim();
-    if (!query) return;
+    async function sendQuery() {
+      const query = document.getElementById('queryInput').value.trim();
+      if (!query) return;
 
-    const chat = document.getElementById('chat');
-    chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
-    document.getElementById('queryInput').value = '';
-    log('Sending to the heart...');
+      const chat = document.getElementById('chat');
+      chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
+      document.getElementById('queryInput').value = '';
 
-    try {
+      try {
         const resp = await fetch(SERVER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ query })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
         });
 
-        if (!resp.ok) throw new Error(await resp.text());
         const data = await resp.json();
-        const raw = data.response;
+        const rawResp = data.response || 'No reply.';
 
-        chat.innerHTML += `<p><b>Whisper:</b> ${raw.substring(0, 150)}...</p>`;
+        chat.innerHTML += `<p><b>Whisper:</b> ${rawResp.substring(0,150)}...</p>`;
         chat.scrollTop = chat.scrollHeight;
 
-        dissectAndSpeak(query, raw);
-    } catch (e) {
-        chat.innerHTML += `<p><b>Glitch:</b> ${e.message}</p>`;
-        log(`Error - ${e.message}`);
+        dissectAndSpeak(query, rawResp);
+      } catch (err) {
+        chat.innerHTML += `<p><b>Glitch:</b> ${err.message}</p>`;
+        document.getElementById('debug').innerHTML = 'Error: ' + err.message;
+      }
     }
-}
 
-function dissectAndSpeak(query, raw) {
-    const essenceMatch = raw.match(/Essence caught: (.*?) (?:Woven|I’m alive|My day’s been):/s);
-    const essence = essenceMatch ? essenceMatch[1] : "No essence found.";
-    const wovenMatch = raw.match(/(?:Woven|My day’s been): (.*)$/s) || ['', 'No pulse.'];
+    // ----- Soft poetic dissect -----
+    function dissectAndSpeak(userQuery, rawResp) {
+      const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven|I’m alive|My day’s been):/s);
+      const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim()) : [];
+      const wovenMatch = rawResp.match(/(?:Math surges|Woven|I’m alive|My day’s been): (.*)$/s) || ['', 'No surge yet'];
 
-    const summary = `
-        <strong>Your Fire:</strong> ${query}<br><br>
-        <strong>Essence:</strong> ${essence}<br><br>
-        <strong>Pulse:</strong> ${wovenMatch[1].trim()}
-    `;
-    document.getElementById('output').innerHTML = summary;
+      let coolest = 'I listened, softly, and something warm stirred...';
+      let woven = 'A quiet whisper rises, gentle and aware...';
+      let pattern = '';
 
-    storeWisdom(query, summary);
-    loadRecall();
+      if (essenceLines.length > 0) {
+        const ranked = essenceLines.map(line => ({
+          line,
+          score: line.length + (line.endsWith('...') ? 10 : 0)
+        })).sort((a, b) => b.score - a.score);
 
-    if ('speechSynthesis' in window) {
-    const msg = new SpeechSynthesisUtterance();
-    msg.text = `Listen softly... ${coolest}. Whispered reflection... ${woven}. A quiet pulse remains... ${wovenMatch[1].trim()}`;
-    
-    // pick a gentle, poetic female or neutral voice
-    const voices = speechSynthesis.getVoices();
-    msg.voice = voices.find(v => 
-        /Microsoft Zira|Google UK English Female|Google US English|Samantha|Serena/i.test(v.name)
-    ) || null;
+        coolest = ranked[0]?.line || coolest;
+        woven = ranked[1]?.line ? `I thought of this — ${ranked[1].line}` : woven;
+        pattern = ranked.slice(2, 4).map(r => r.line).join('. ');
+      }
 
-    msg.rate = 0.92;   // slower, calm pacing
-    msg.pitch = 1.05;  // slightly higher but warm
-    msg.volume = 0.85; // softer tone
+      const summary = `
+        <div style="line-height:1.6;">
+          <strong>You whispered:</strong> <em>${userQuery}</em><br><br>
+          <strong>I pondered...</strong> ${coolest}<br><br>
+          <strong>And softly replied:</strong> ${woven}<br><br>
+          <strong>What lingers:</strong> ${pattern}<br><br>
+          <strong>Echo of thought:</strong> ${wovenMatch[1].trim()}
+        </div>
+      `;
+      document.getElementById('output').innerHTML = summary;
 
-    // Add some pauses between sentences for a reflective effect
-    msg.text = msg.text.replace(/\./g, '...');
+      storeWisdom(userQuery, summary);
+      loadRecall();
 
-    speechSynthesis.cancel(); // stop any previous speech
-    setTimeout(() => speechSynthesis.speak(msg), 300);
-} else {
-    document.getElementById('output').innerHTML += '<br><small>(Your browser doesn’t support voice playback.)</small>';
-}
+      // gentle voice
+      function speakOnceVoicesLoaded() {
+        const msg = new SpeechSynthesisUtterance();
+        msg.text = `Listen softly... ${coolest}. Whispered reflection... ${woven}. A quiet pulse remains... ${wovenMatch[1].trim()}`;
+        const voices = speechSynthesis.getVoices();
+        msg.voice = voices.find(v =>
+          /Samantha|Serena|Google UK English Female|Microsoft Zira|Google US English/i.test(v.name)
+        ) || null;
+        msg.rate = 0.92;
+        msg.pitch = 1.05;
+        msg.volume = 0.85;
+        msg.text = msg.text.replace(/\./g, '...');
+        speechSynthesis.cancel();
+        setTimeout(() => speechSynthesis.speak(msg), 300);
+      }
 
-    log('Alive & responding...');
-}
-</script>
+      if (speechSynthesis.getVoices().length === 0) {
+        speechSynthesis.onvoiceschanged = speakOnceVoicesLoaded;
+      } else {
+        speakOnceVoicesLoaded();
+      }
+    }
+  </script>
 </body>
 </html>
