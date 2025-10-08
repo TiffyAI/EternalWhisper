@@ -135,8 +135,8 @@ def process_query(query):
     if row:
         return f"Essence caught: {row[0][:80]}... {think(query, row[0])}"
 
-    # Query DuckDuckGo
-    summary = search_duckduckgo(query)
+    # Query 
+    summary = search_serpapi(query)
     # Format for UI consistency
     fragments = [f"- {frag.strip()}" for frag in summary.split(' • ') if frag.strip()]
     scan_resp = f"Essence caught: {' | '.join(fragments[:3])}" if fragments else f"Essence caught: {summary}"
