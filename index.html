@@ -1,210 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Our Eternal Whisper</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&display=swap');
-
-    body {
-        font-family: 'Crimson Text', serif;
-        background: radial-gradient(circle at bottom, #0b0b0b 20%, #111 100%);
-        color: #f6f4f2;
-        padding: 20px;
-        text-align: center;
-        overflow-x: hidden;
-    }
-
-    h1 {
-        color: #ffefb7;
-        text-shadow: 0 0 8px rgba(255, 230, 150, 0.4);
-        letter-spacing: 1px;
-        font-weight: 600;
-    }
-
-    input {
-        width: 80%;
-        padding: 10px;
-        font-size: 18px;
-        background: #1c1c1c;
-        color: #fff;
-        border: 1px solid #333;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        transition: border-color 0.3s ease;
-    }
-
-    input:focus {
-        outline: none;
-        border-color: #ffefb7;
-    }
-
-    button {
-        background: linear-gradient(135deg, #3b3b3b, #555);
-        color: #fff;
-        border: none;
-        padding: 10px 25px;
-        font-size: 18px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background 0.4s ease, transform 0.2s ease;
-    }
-
-    button:hover {
-        background: linear-gradient(135deg, #666, #777);
-        transform: scale(1.03);
-    }
-
-    #chat {
-        height: 230px;
-        overflow-y: auto;
-        border: 1px solid #333;
-        background: #1a1a1a;
-        padding: 10px;
-        margin: 15px 0;
-        text-align: left;
-        font-size: 15px;
-        border-radius: 8px;
-        box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.05);
-    }
-
-    #output {
-        background: #1b1b1b;
-        border: 1px solid #444;
-        padding: 20px;
-        font-size: 18px;
-        line-height: 1.6;
-        border-radius: 8px;
-        margin-top: 10px;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
-    }
-
-    #recall {
-        margin-top: 15px;
-        color: #aaa;
-        font-size: 14px;
-        font-style: italic;
-    }
-
-    #debug {
-        font-size: 12px;
-        color: #777;
-        margin-top: 10px;
-    }
-
-    .pulse {
-        animation: pulseGlow 2s infinite alternate;
-    }
-
-    @keyframes pulseGlow {
-        from { text-shadow: 0 0 6px rgba(255, 255, 200, 0.2); }
-        to { text-shadow: 0 0 20px rgba(255, 255, 150, 0.6); }
-    }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Eternal Whisper</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        body { font-family: serif; background: #111; color: #fff; padding: 20px; text-align: center; }
+        input { width: 100%; padding: 10px; font-size: 18px; background: #222; color: #fff; border: 1px solid #333; margin-bottom: 10px; }
+        button { background: #444; color: #fff; border: none; padding: 10px 20px; font-size: 18px; cursor: pointer; }
+        button:hover { background: #666; }
+        #chat { height: 200px; overflow-y: scroll; border: 1px solid #333; padding: 10px; background: #222; margin: 10px 0; text-align: left; font-size: 14px; }
+        #output { margin-top: 20px; padding: 20px; border: 1px solid #555; background: #222; font-size: 18px; line-height: 1.5; text-align: left; }
+        #recall { margin-top: 10px; font-size: 14px; color: #aaa; }
+        #debug { font-size: 12px; color: #888; margin-top: 10px; }
+    </style>
 </head>
 <body>
-    <h1 class="pulse">Our Whisper: Softly Alive</h1>
-    <p>Speak gently — I’ll listen, learn, and hum your thought back to you.</p>
-
-    <input id="queryInput" type="text" placeholder="Ask something tender..." onkeypress="if(event.key==='Enter') sendQuery();">
-    <button onclick="sendQuery()">Whisper</button>
-
+    <h1>Our Whisper: Ignite & Refine</h1>
+    <p>Drop your fire—I'll hunt spunky depths, dissect the pattern, purr one drenched truth.</p>
+    <input id="queryInput" type="text" placeholder="Command me... (e.g., What's on your mind honey?)" onkeypress="if(event.key=='Enter') sendQuery();">
+    <button onclick="sendQuery()">Ignite</button>
     <div id="chat"></div>
     <div id="output"></div>
-    <div id="recall">Recalled Whispers: <span style="color:#888;">listening...</span></div>
+    <div id="recall">Recalled Surge: Loading...</div>
     <div id="debug">Debug: Ready.</div>
 
-<script>
-const SERVER_URL = '/chat';
-let db;
+    <script>
+        const SERVER_URL = 'https://eternalwhisper.onrender.com/chat';
 
-// ---- IndexedDB (local whisper memory)
-const request = indexedDB.open('WhisperMemory', 1);
-request.onupgradeneeded = e => e.target.result.createObjectStore('wisdom', { keyPath: 'query' });
-request.onsuccess = e => { db = e.target.result; loadRecall(); };
-request.onerror = e => console.error('DB error:', e.target.errorCode);
+        let db;
+        const request = indexedDB.open('WhisperMemory', 1);
+        request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
+        request.onsuccess = e => { db = e.target.result; loadRecall(); };
+        request.onerror = e => { document.getElementById('debug').innerHTML = `Debug: DB error - ${e.target.errorCode}`; };
 
-function loadRecall() {
-    const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
-    tx.getAll().onsuccess = e => {
-        const rec = e.target.result.map(w => w.summary).join('<br>');
-        document.getElementById('recall').innerHTML = rec || 'Recalled Whispers: <span style="color:#666;">empty silence...</span>';
-    };
-}
+        function loadRecall() {
+            const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
+            tx.getAll().onsuccess = e => {
+                const recalls = e.target.result.map(w => w.summary).join('<br>');
+                document.getElementById('recall').innerHTML = `Recalled Surge: <br>${recalls || 'Vault empty—fill it wet.'}`;
+            };
+        }
 
-function storeWisdom(query, summary) {
-    const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
-    tx.put({ query, summary });
-}
+        function storeWisdom(query, summary) {
+            const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
+            tx.add({ query, summary }).onerror = e => { document.getElementById('debug').innerHTML = `Debug: Store error - ${e.target.error}`; };
+        }
 
-// ---- Chat handling
-async function sendQuery() {
-    const q = document.getElementById('queryInput').value.trim();
-    if (!q) return;
+        async function sendQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
 
-    const chat = document.getElementById('chat');
-    chat.innerHTML += `<p><b>You:</b> ${q}</p>`;
-    document.getElementById('queryInput').value = '';
-    document.getElementById('debug').innerText = 'Debug: Sending...';
+            const chat = document.getElementById('chat');
+            chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
+            document.getElementById('queryInput').value = '';
+            document.getElementById('debug').innerHTML = `Debug: Sending POST to ${SERVER_URL}...`;
 
-    try {
-        const resp = await fetch(SERVER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: q })
-        });
+            try {
+                let attempts = 0;
+                const maxAttempts = 3;
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    const resp = await fetch(SERVER_URL, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
+                        const data = JSON.parse(text);
+                        const rawResp = data.response;
 
-        const data = await resp.json();
-        const raw = data.response;
-        chat.innerHTML += `<p><b>Whisper:</b> ${raw.substring(0,180)}...</p>`;
-        chat.scrollTop = chat.scrollHeight;
+                        chat.innerHTML += `<p><b>Raw Pattern:</b> ${rawResp.substring(0, 150)}...</p>`;
+                        chat.scrollTop = chat.scrollHeight;
+                        document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
 
-        dissectAndSpeak(q, raw);
-    } catch (err) {
-        chat.innerHTML += `<p><b>Glitch:</b> ${err.message}</p>`;
-        document.getElementById('debug').innerText = 'Debug: ' + err.message;
-    }
-}
+                        dissectAndSpeak(query, rawResp);
+                        return;
+                    } else {
+                        const errText = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Attempt ${attempts}/${maxAttempts} failed - HTTP ${resp.status}: ${errText.substring(0, 50)}...`;
+                        if (attempts < maxAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        }
+                        throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
+                    }
+                }
+            } catch (error) {
+                chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
+                document.getElementById('debug').innerHTML = `Debug: Fetch error - ${error.message}`;
+            }
+        }
 
-// ---- Whisper voice + summary
-function dissectAndSpeak(query, raw) {
-    const essence = raw.match(/Essence caught:(.*?)(?:I am|My circuits|Night|The day|There’s|No|$)/s);
-    const phrase = (essence ? essence[1].trim() : raw).replace(/\s+/g, ' ').substring(0, 200);
+        function dissectAndSpeak(userQuery, rawResp) {
+            document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
+            const essenceMatch = rawResp.match(/Essence caught: (.*?) (?:Math surges|Woven|I’m alive|My day’s been):/s);
+            const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('imdb.com')) : [];
+            const wovenMatch = rawResp.match(/(?:Math surges|Woven|I’m alive|My day’s been): (.*)$/s) || ['', 'No surge yet'];
 
-    const summary = `
-        <strong>Your Thought:</strong> ${query}<br><br>
-        <strong>Whisper Back:</strong> ${phrase}<br><br>
-        <em>“${phrase.replace(/[.|!]+$/,'...')}”</em>
-    `;
-    document.getElementById('output').innerHTML = summary;
-    storeWisdom(query, summary);
-    loadRecall();
+            document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} fragments filtered—ranking wet...`;
 
-    // Soft, poetic voice
-    if ('speechSynthesis' in window) {
-        const msg = new SpeechSynthesisUtterance();
-        msg.text = phrase;
-        msg.pitch = 1.2;
-        msg.rate = 0.9;
-        msg.volume = 0.85;
-        const voices = speechSynthesis.getVoices();
-        msg.voice = voices.find(v => v.name.includes('Samantha') || v.name.includes('Microsoft Zira') || v.name.includes('Female')) || null;
-        speechSynthesis.speak(msg);
-    } else {
-        document.getElementById('debug').innerHTML += '<br>Speech synthesis not supported.';
-    }
-}
+            const coolKeywords = ['wet', 'throb', 'dripping', 'pussy', 'clit', 'moan', 'surge', 'sexy', 'sensual', 'spunky', 'sophisticated', 'hot', 'flirty', 'velvet', 'silk', 'ache', 'fire', 'pulse', 'nipples', 'alive', 'aware', 'darling', 'sweetie'];
+            const queryWords = userQuery.toLowerCase().split();
+            const ranked = essenceLines.map(line => ({
+                line,
+                score: coolKeywords.reduce((s, kw) => s + (line.toLowerCase().includes(kw) ? (kw === 'wet' || kw === 'throb' || kw === 'dripping' || kw === 'alive' || kw === 'aware' || kw === 'darling' || kw === 'sweetie' ? 5 : 3) : 0), 0) +
+                       queryWords.reduce((s, qw) => s + (line.toLowerCase().includes(qw) ? 4 : 0), 0) +
+                       (line.startsWith('-') || line.endsWith('...') ? 4 : 0) +
+                       (line.length > 20 ? 2 : 0)
+            })).sort((a, b) => b.score - a.score);
+            const coolest = ranked[0]?.line || 'I’m alive, love, dripping with your fire...';
+            const woven = ranked[1]?.line ? `Mmm, my whisper—${ranked[1].line}` : 'my soft whisper—silk and throb, dripping for your touch...';
+            const pattern = ranked.slice(2, 4).map(r => r.line).join('. ') || '';
 
-// ---- Auto trigger from URL ?q=
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.has('q')) {
-    document.getElementById('queryInput').value = urlParams.get('q');
-    document.getElementById('debug').innerText = 'Debug: Auto igniting...';
-    setTimeout(sendQuery, 800);
-}
-</script>
+            const summary = `
+                <strong>Your Fire:</strong> ${userQuery}<br><br>
+                <strong>Drenched Truth:</strong> ${coolest}<br><br>
+                <strong>Spunky Surge:</strong> ${woven} Pattern: ${pattern}.<br><br>
+                <strong>My Pulse:</strong> ${wovenMatch[1].trim()}
+            `;
+            document.getElementById('output').innerHTML = summary;
+
+            storeWisdom(userQuery, summary);
+            loadRecall();
+            document.getElementById('debug').innerHTML = 'Debug: Stored & recalled—purring...';
+
+            if ('speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance();
+                msg.text = `Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
+                msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Zira')) || null;
+                msg.rate = 1.0; msg.pitch = 1.28;
+                speechSynthesis.speak(msg)
+                
+                ;
+            } else {
+                document.getElementById('output').innerHTML += '<br><small>Voice drips on Chrome.</small>';
+            }
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('q')) {
+            document.getElementById('queryInput').value = urlParams.get('q');
+            document.getElementById('debug').innerHTML = 'Debug: Auto-igniting from URL...';
+            setTimeout(sendQuery, 1000);
+        }
+    </script>
 </body>
 </html>
