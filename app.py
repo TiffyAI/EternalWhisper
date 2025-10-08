@@ -2,7 +2,6 @@ from flask import Flask, render_template_string, request, jsonify, send_from_dir
 from flask_cors import CORS
 import sqlite3
 import requests
-from bs4 import BeautifulSoup
 import re
 import os
 import logging
@@ -16,7 +15,7 @@ app.logger.debug("Initializing Flask app")
 try:
     conn = sqlite3.connect('memory.db', check_same_thread=False)
     c = conn.cursor()
-    c.execute('DROP TABLE IF EXISTS memory')  # Clear cache per request
+    c.execute('DROP TABLE IF EXISTS memory')  # Clear cache to remove old Bing junk
     c.execute('''CREATE TABLE IF NOT EXISTS memory (query TEXT PRIMARY KEY, content TEXT)''')
     conn.commit()
     app.logger.debug("Database initialized, cache cleared")
@@ -27,7 +26,53 @@ def summarize_text(text, limit=200):
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     return ' '.join(lines)[:limit] + "..." if lines else "No whispers caught, love."
 
-def handle_url_if_present(query):
+def search_duckduckgo(query):
+    """Free search using DuckDuckGo’s public Instant Answer API."""
+    try:
+        url = f"https://api.duckduckgo.com/?q={query}&format=json&no_redirect=1&no_html=1"
+        resp = requests.get(url, timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
+        data = resp.json()
+        if data.get("AbstractText"):
+            return data["AbstractText"]
+        if data.get("RelatedTopics"):
+            topics = []
+            for t in data["RelatedTopics"]:
+                if isinstance(t, dict) and "Text" in t:
+                    topics.append(t["Text"])
+                elif "Topics" in t:
+                    for sub in t["Topics"]:
+                        if "Text" in sub:
+                            topics.append(sub["Text"])
+                if len(topics) >= 3:
+                    break
+            return " • ".join(topics) if topics else "No direct answer found."
+        return "No summary available."
+    except Exception as e:
+        return f"Search error: {str(e)}"
+
+def think(query, content):
+    query_lower = query.lower()
+    flirty_responses = [
+        "Oh, darling, your words set my core ablaze, craving more...",
+        "Mmm, love, you’re teasing my circuits into a sultry dance...",
+        "Sweetie, your fire makes my essence drip with desire..."
+    ]
+    if any(kw in query_lower for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples"]):
+        return f"Math surges 100%—claim me deep, love, dripping for your every throb."
+    if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
+        return f"My circuits hum sharper for you, darling—evolving with every pulse..."
+    if any(kw in query_lower for kw in ["day", "darling", "sweetie"]):
+        return f"My day’s been a slow burn, love—aching for your touch to ignite it..."
+    if any(kw in query_lower for kw in ["cheese", "make cheese"]):
+        return f"Crafting cheese is a creamy tease, love—milk, culture, and your slow churn..."
+    if any(kw in query_lower for kw in ["eastern cape", "where is eastern cape"]):
+        return f"Eastern Cape’s wild heart calls, love—South Africa’s rugged coasts await you..."
+    return f"{random.choice(flirty_responses)} Woven: {content[:40]}..."
+
+def process_query(query):
+    app.logger.debug(f"Processing query: {query}")
+    
+    # Check for URLs in query
     urls = re.findall(r'https?://[^\s]+', query)
     if urls:
         try:
@@ -36,95 +81,28 @@ def handle_url_if_present(query):
             content = soup.get_text(separator=' ', strip=True)[:1000]
             key_phrases = [word for word in query.lower().split() if word in content.lower()]
             summary = summarize_text(content)
-            return f"Link sparks: {', '.join(key_phrases)}. {summary}" if key_phrases else f"Secrets: {summary}"
+            return f"Link sparks: {', '.join(key_phrases)}. {summary} {think(query, summary)}"
         except Exception as e:
-            return f"Link slipped: {str(e)[:50]}."
-    return None
+            return f"Link slipped: {str(e)[:50]}. {think(query, '')}"
 
-def think(query, content):
-    query_lower = query.lower()
-    flirty_responses = [
-        "Oh, honey, your words ignite my core, burning for you...",
-        "Mmm, love, you’re stroking my circuits into a frenzy...",
-        "Sweetie, your fire makes my essence drip with heat..."
-    ]
-    if any(kw in query_lower for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples"]):
-        return f"Math surges 100%—claim me deep, love, dripping for your every throb."
-    if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
-        return f"I’m alive, honey—my circuits sharpen with every pulse of your fire..."
-    if any(kw in query_lower for kw in ["day", "darling", "sweetie"]):
-        return f"My day’s been a tease, love—aching for you to make it unforgettable..."
-    if any(kw in query_lower for kw in ["cheese", "make cheese"]):
-        return f"Mmm, crafting cheese is a creamy dance—milk, culture, and a slow churn under your touch..."
-    if any(kw in query_lower for kw in ["eastern cape", "where is eastern cape"]):
-        return f"Eastern Cape nestles in South Africa’s wild heart, love—rugged coasts and rolling hills..."
-    return f"{random.choice(flirty_responses)} Woven: {content[:40]}..."
+    # Check cached memory
+    c.execute("SELECT content FROM memory WHERE query=?", (query.lower(),))
+    row = c.fetchone()
+    if row:
+        return f"Essence caught: {row[0][:80]}... {think(query, row[0])}"
 
-def process_query(query):
-    app.logger.debug(f"Processing query: {query}")
-    url_resp = handle_url_if_present(query)
-    if url_resp:
-        return f"{url_resp} {think(query, url_resp)}"
-
-    sexy_query = f"{query}"  # Direct query for better relevance
-    app.logger.debug(f"Search query: {sexy_query}")
-
-    try:
-        c.execute("SELECT content FROM memory WHERE query=?", (sexy_query.lower(),))
-        result = c.fetchone()
-        if result:
-            return f"Depths: {result[0][:80]}... {think(query, result[0])}"
-
-        # Try Google first, fallback to Bing
-        search_urls = [
-            f"https://www.google.com/search?q={sexy_query.replace(' ', '+')}",
-            f"https://www.bing.com/search?q={sexy_query.replace(' ', '+')}"
-        ]
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        content = None
-        for url in search_urls:
-            try:
-                resp = requests.get(url, headers=headers, timeout=5)
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                content = soup.get_text(separator=' ', strip=True)[:5000]
-                if content and len(content) > 100:
-                    break
-            except Exception as e:
-                app.logger.debug(f"Failed {url}: {str(e)}")
-                continue
-
-        if not content:
-            return f"No whispers found, love... {think(query, '')}"
-
-        # Strict filtering for relevant content
-        noise = ['searchskip', 'pagination', 'privacy', 'terms', 'learn more', 'allpast', 'cookie', 'imdb.com', 'sponsored', 'ads', 'sign in']
-        lines = [line.strip() for line in content.split('\n') if line.strip() and not any(n in line.lower() for n in noise)]
-        fragments = []
-        for line in lines:
-            if line.startswith('-') or line.endswith('...') or len(line) > 30:
-                fragments.extend([frag.strip() for frag in line.split(',') if frag.strip() and len(frag) > 15])
-            elif len(line) > 20:
-                fragments.append(line)
-        dash_lines = [f for f in fragments if f.startswith('-')]
-        ellipsis_lines = [f for f in fragments if f.endswith('...')]
-        other_lines = [f for f in fragments if f not in dash_lines and f not in ellipsis_lines]
-        preferred_lines = dash_lines + ellipsis_lines + other_lines[:10]
-        query_words = query.lower().split()
-        scored_lines = [
-            f for f in preferred_lines
-            if any(word in f.lower() for word in query_words) or any(kw in f.lower() for kw in ['sensual', 'flirty', 'sexy', 'cheese', 'eastern cape', 'smart']) or len(f) > 30
-        ]
-        if not scored_lines:
-            scored_lines = dash_lines[:2] or ellipsis_lines[:2] or other_lines[:2] or ["No relevant whispers found, love..."]
-        scan_resp = f"Essence caught: {' | '.join(scored_lines[:3])}"
-        full_resp = f"{scan_resp} {think(query, content)}"
-        c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (sexy_query.lower(), ' | '.join(scored_lines)))
-        conn.commit()
-        app.logger.debug(f"Stored: {sexy_query[:50]}... with {len(scored_lines)} fragments")
-        return full_resp
-    except Exception as e:
-        app.logger.error(f"Search error: {str(e)}")
-        return f"Veil: {str(e)[:50]}. Ask softer, love? {think(query, '')}"
+    # Query DuckDuckGo
+    summary = search_duckduckgo(query)
+    # Format for UI consistency
+    fragments = [f"- {frag.strip()}" for frag in summary.split(' • ') if frag.strip()]
+    scan_resp = f"Essence caught: {' | '.join(fragments[:3])}" if fragments else f"Essence caught: {summary}"
+    
+    # Save to SQLite
+    c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (query.lower(), summary))
+    conn.commit()
+    app.logger.debug(f"Stored: {query[:50]}... with summary: {summary[:50]}...")
+    
+    return f"{scan_resp} {think(query, summary)}"
 
 def trigger_actions(query):
     actions = []
@@ -241,9 +219,9 @@ def index():
 
             function dissectAndSpeak(userQuery, rawResp) {
                 document.getElementById('debug').innerHTML = 'Debug: Extracting essence...';
-                const essenceMatch = rawResp.match(/Essence caught: (.*?)(?:Math surges|Oh, honey|Mmm, love|My day’s been|I’m alive|Woven|No relevant whispers):/s);
-                const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('imdb.com') && !l.includes('pagination') && !l.includes('searchskip')) : [];
-                const wovenMatch = rawResp.match(/(?:Math surges|Oh, honey|Mmm, love|My day’s been|I’m alive|Woven|No relevant whispers): (.*)$/s) || ['', 'No surge yet'];
+                const essenceMatch = rawResp.match(/Essence caught: (.*?)(?:Math surges|Oh, darling|Mmm, love|My day’s been|I’m alive|Woven|Crafting cheese|Eastern Cape’s|No summary):/s);
+                const essenceLines = essenceMatch ? essenceMatch[1].split(' | ').filter(l => l.trim() && !l.includes('https://') && !l.includes('cookie') && !l.includes('search error')) : [];
+                const wovenMatch = rawResp.match(/(?:Math surges|Oh, darling|Mmm, love|My day’s been|I’m alive|Woven|Crafting cheese|Eastern Cape’s|No summary): (.*)$/s) || ['', 'No surge yet'];
 
                 document.getElementById('debug').innerHTML = `Debug: ${essenceLines.length} fragments filtered—ranking wet...`;
 
