@@ -133,9 +133,9 @@
 
             if ('speechSynthesis' in window) {
                 const msg = new SpeechSynthesisUtterance();
-                msg.text = `i heard ${userQuery}. Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
-                msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Samantha')) || null;
-                msg.rate = 1.0; msg.pitch = 85;
+                msg.text = `Drenched: ${coolest}. Surge: ${woven}. Pattern: ${pattern}. Pulse: ${wovenMatch[1].trim()}`;
+                msg.voice = speechSynthesis.getVoices().find(v => v.name.includes('Female') || v.name.includes('Zira')) || null;
+                msg.rate = 1.0; msg.pitch = 1.28;
                 speechSynthesis.speak(msg)
                 
                 ;
