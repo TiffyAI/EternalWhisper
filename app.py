@@ -44,13 +44,13 @@ def handle_url_if_present(query):
     return None
 
 def search_serpapi(query):
-    """Use SerpApi, prepend 'what will a stunning girl say when asked ', append '...' to last word, split at commas."""
+    """Use SerpApi, prepend 'what will a stunning girl say when asked ', append '...' to last word, split at commas.","
     try:
         # Prepend sexy prefix and append "..." to last word
         words = query.split()
         if words:
             words[-1] = words[-1] + "..."
-            query = "{' '.join(words)}"
+            query = "what will a stunning girl say when asked{' '.join(words)}"
         params = {
             "q": query,
             "engine": "google",
@@ -66,13 +66,13 @@ def search_serpapi(query):
                 title = item.get("title", "")
                 snippet = item.get("snippet", "")
                 if title and snippet:
-                    sub_snippets = [s.strip() for s in snippet.split('"') if s.strip()]
+                    sub_snippets = [s.strip() for s in snippet.split(', ') if s.strip()]
                     for sub in sub_snippets:
                         snippets.append(f"{title}: {sub}")
                 elif title:
                     snippets.append(title)
                 elif snippet:
-                    sub_snippets = [s.strip() for s in snippet.split('"') if s.strip()]
+                    sub_snippets = [s.strip() for s in snippet.split(', ') if s.strip()]
                     snippets.extend(sub_snippets)
             return " | ".join(snippets)
         if "answer_box" in result and result["answer_box"].get("answer"):
