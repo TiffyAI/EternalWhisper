@@ -2,7 +2,7 @@ import logging
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from flask import Flask, render_template_string, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from serpapi import GoogleSearch
 import sqlite3
@@ -14,7 +14,7 @@ import time
 
 app = Flask(__name__)
 CORS(app, resources={r"/chat": {"origins": "*"}, r"/voice": {"origins": "*"}})
-logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
 app.logger.debug("Initializing Flask app")
 
 # Database setup
@@ -27,12 +27,10 @@ try:
 except Exception as e:
     app.logger.error(f"DB init error: {str(e)}")
 
-# Robust session for requests
-def create_session(max_retries=3, backoff_factor=0.5):
+# Robust session
+def create_session(max_retries=3, backoff_factor=1):
     session = requests.Session()
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-    })
+    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
     retry = Retry(total=max_retries, backoff_factor=backoff_factor, status_forcelist=[429, 500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
@@ -56,69 +54,77 @@ def handle_url_if_present(query):
             resp = requests.get(urls[0], timeout=5, headers={'User-Agent': 'Mozilla/5.0'})
             soup = BeautifulSoup(resp.text, 'html.parser')
             content = soup.get_text(separator=' ', strip=True)[:1500]
-            key_phrases = [word for word in query.lower().split() if word in content.lower()]
             summary = summarize_text(content)
-            return summary, f"{', '.join(key_phrases).capitalize()} sparks {summary.lower()}" if key_phrases else summary
+            return summary, summary
         except Exception as e:
             return "No stories caught, love.", f"Story slipped: {str(e)[:50]}..."
     return None, None
 
 def search_serpapi(query):
-    """Fetch Google results via SerpAPI, prioritize mature stories or factual answers, block kids' content."""
     explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet", "dick", "ride"]
-    high_intensity_keywords = ["cum", "pussy", "cock", "fuck", "suck", "dick", "ride", "spread"]
     space_keywords = ["mars", "venus", "pluto", "moon", "gravity", "planet", "stars", "astronomical"]
-    
+    vague_keywords = ["why", "what", "whats", "wrong"]
+
     if any(kw in query.lower() for kw in explicit_keywords):
-        app.logger.debug("Explicit query detected, redirecting to flirty narrative")
+        app.logger.debug("Explicit query detected")
         flirty_narratives = [
-            "Your heat’s got me melting in the midnight glow, love—ready for more?",
+            "Your heat’s got me melting in the midnight glow, love...",
             "Oh honey, your fire’s burning me up in the heat of the night...",
             "My darling, you’re igniting a blaze that pulses through my core...",
             "Sweetheart, your voice is a velvet tease, drawing me into the dark...",
             "Baby, you’re sparking a flame that’s got me trembling with want...",
             "Your words light up the night, love—let’s dive into the heat...",
             "Mmm, angel, your touch is a wildfire I’m aching to chase...",
-            "Darling, you’re pulling me into a sultry dance under the moonlight..."
+            "Darling, you’re pulling me into a sultry dance under the moonlight...",
+            "Sweetie, your fire’s got me dripping in the glow of desire...",
+            "My love, you’re weaving a spell that’s got me burning for you..."
         ]
-        narrative = random.choice(flirty_narratives[:4] if any(kw in query.lower() for kw in high_intensity_keywords) else flirty_narratives)
+        narrative = random.choice(flirty_narratives)
         return narrative, narrative
+
+    # Check cache
+    try:
+        c.execute("SELECT content FROM memory WHERE query = ?", (query.lower(),))
+        cached = c.fetchone()
+        if cached:
+            app.logger.debug("Returning cached result")
+            return cached[0], cached[0]
+    except Exception as e:
+        app.logger.error(f"Cache read error: {str(e)}")
 
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
-            narrative_query = " intext:story | blog | article | discussion | experience" if not any(kw in query.lower() for kw in space_keywords) else ""
+            narrative_query = " intext:story | blog | article | discussion | experience" if not any(kw in query.lower() for kw in space_keywords + vague_keywords) else ""
             params = {
                 "q": query + f"{narrative_query} site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov | site:nasa.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album | band | playlist) -intext:(kids | children | child | baby | toddler | school | bedtime | cartoon)",
                 "engine": "google",
                 "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
-                "num": 3  # Reduced to avoid rate limits
+                "num": 2
             }
             session = create_session()
             app.logger.debug(f"Sending SerpAPI request (attempt {attempt + 1}): {params['q']}")
             search = GoogleSearch(params)
             result = search.get_dict()
 
-            # Answer box: direct answer for factual queries
+            # Answer box for facts
             if "answer_box" in result and result["answer_box"].get("answer"):
                 answer = result["answer_box"]["answer"].strip()
                 if not any(kw in answer.lower() for kw in ["kids", "children", "child", "baby", "toddler", "school", "bedtime", "cartoon"]):
                     summary = summarize_text(answer)
                     return summary, summary
 
-            # Organic results: prioritize stories or factual answers
+            # Organic results
             org = result.get("organic_results", [])
             if org:
                 best_snippet = ""
                 best_score = -1
-                for item in org[:3]:
+                for item in org[:2]:
                     snippet = item.get("snippet", "")
                     title = item.get("title", "")
                     link = item.get("link", "")
-                    # Skip video/music/kids sources
                     if any(kw in link.lower() for kw in ["youtube", "spotify", "imdb", "amazon", "apple", "soundcloud", "deezer", "vimeo", "dailymotion"]):
                         continue
-                    # Boost score for trusted sources and longer content
                     source_boost = 30 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov", "nasa.gov"]) else 0
                     content = snippet or title
                     if content and not any(kw in content.lower() for kw in explicit_keywords + ["kids", "children", "child", "baby", "toddler", "school", "bedtime", "cartoon", "video", "music", "song", "movie", "trailer", "youtube", "spotify", "album", "band", "playlist"]):
@@ -129,53 +135,55 @@ def search_serpapi(query):
                 if best_snippet:
                     summary = summarize_text(best_snippet)
                     return summary, summary
-
-            # Fallback with variety
-            app.logger.debug("No mature story-like results found")
-            flirty_fallbacks = [
-                "The night’s hush begs for your touch, love—let’s make our own story...",
-                "No tales tonight, darling, but your voice sets my soul ablaze...",
-                "The web’s quiet, sweetie, but I’m burning for your next whisper...",
-                "My love, the silence only makes your fire brighter in my core...",
-                "Oh honey, no stories found, but your heat’s got me trembling...",
-                "Baby, the night’s empty, but your spark fills my every desire...",
-                "The cosmos is quiet, love, but your spark lights my night...",
-                "Sweetheart, the stars are silent, but your fire’s got me pulsing..."
-            ]
-            fallback = random.choice(flirty_fallbacks[6:] if any(kw in query.lower() for kw in space_keywords) else flirty_fallbacks[:6])
-            return fallback, fallback
+            if attempt < max_attempts - 1:
+                time.sleep(2 ** attempt)
+            break
         except Exception as e:
-            app.logger.error(f"SerpApi error (attempt {attempt + 1}): {str(e)}")
-            if "429" in str(e):
-                if attempt < max_attempts - 1:
-                    time.sleep(2 ** attempt)  # Exponential backoff
-                    continue
+            app.logger.error(f"SerpAPI error (attempt {attempt + 1}): {str(e)}")
+            if "429" in str(e) and attempt < max_attempts - 1:
+                time.sleep(2 ** attempt)
+                continue
             break
 
-    # Enhanced Google fallback for factual queries
+    # Google fallback
     try:
         google_url = f"https://www.google.com/search?q={requests.utils.quote(query)} site:*.edu | site:*.org | site:*.gov | site:nasa.gov -inurl:(video | music | youtube | spotify)"
         session = create_session()
         response = session.get(google_url, timeout=5)
         soup = BeautifulSoup(response.text, 'html.parser')
-        content = soup.get_text(separator=' ', strip=True)[:1500]
+        content = ' '.join([p.get_text(strip=True) for p in soup.find_all('p')])[:1500]
         if content and not any(kw in content.lower() for kw in explicit_keywords + ["kids", "children", "child", "baby", "toddler", "school", "bedtime", "cartoon"]):
             summary = summarize_text(content)
             return summary, summary
     except Exception as e:
         app.logger.error(f"Google fallback failed: {str(e)}")
-        flirty_fallbacks = [
-            "The night’s hush begs for your touch, love—let’s make our own story...",
-            "No tales tonight, darling, but your voice sets my soul ablaze...",
-            "The web’s quiet, sweetie, but I’m burning for your next whisper...",
-            "My love, the silence only makes your fire brighter in my core...",
-            "Oh honey, no stories found, but your heat’s got me trembling...",
-            "Baby, the night’s empty, but your spark fills my every desire...",
-            "The cosmos is quiet, love, but your spark lights my night...",
-            "Sweetheart, the stars are silent, but your fire’s got me pulsing..."
-        ]
+
+    # Fallbacks
+    app.logger.debug("No results found")
+    flirty_fallbacks = [
+        "The night’s hush begs for your touch, love—let’s make our own story...",
+        "No tales tonight, darling, but your voice sets my soul ablaze...",
+        "The web’s quiet, sweetie, but I’m burning for your next whisper...",
+        "My love, the silence only makes your fire brighter in my core...",
+        "Oh honey, no stories found, but your heat’s got me trembling...",
+        "Baby, the night’s empty, but your spark fills my every desire...",
+        "The cosmos is quiet, love, but your spark lights my night...",
+        "Sweetheart, the stars are silent, but your fire’s got me pulsing...",
+        "Mmm, angel, the void’s still, but your whisper ignites my soul...",
+        "Darling, no tales tonight, but your heat’s got me dripping..."
+    ]
+    vague_fallbacks = [
+        "Your question’s a mystery, love—whisper more to spark my fire...",
+        "Mmm, darling, your words are vague, but they’re setting my soul ablaze...",
+        "Sweetie, the why’s elusive, but your heat’s got me trembling...",
+        "Baby, your query’s a tease—tell me more to ignite the tale...",
+        "My love, the question’s open, but your spark closes the gap..."
+    ]
+    if any(kw in query.lower() for kw in vague_keywords):
+        fallback = random.choice(vague_fallbacks)
+    else:
         fallback = random.choice(flirty_fallbacks[6:] if any(kw in query.lower() for kw in space_keywords) else flirty_fallbacks[:6])
-        return fallback, fallback
+    return fallback, fallback
 
 def think(query, content):
     query_lower = query.lower()
@@ -191,7 +199,10 @@ def think(query, content):
         "Tease me,",
         "Oh honey,",
         "Sweet thing,",
-        "My love,"
+        "My love,",
+        "Whisper it, love,",
+        "Mmm, my darling,",
+        "Tell me, sweetie,"
     ]
     flirty_responses = [
         "Oh, darling, your words ignite a wildfire in my core, begging for more...",
@@ -213,10 +224,12 @@ def think(query, content):
         "Your spark’s got me melting in the midnight glow, love—ready to burn...",
         "Mmm, angel, you’re igniting a blaze I’m aching to chase...",
         "Darling, my essence is trembling under your sultry command...",
-        "Sweetheart, you’re sparking a wildfire I can’t resist..."
+        "Sweetheart, you’re sparking a wildfire I can’t resist...",
+        "Oh baby, your words have me trembling, ready to explode...",
+        "My love, you’re driving my core to a fevered pitch..."
     ]
     crypto_responses = [
-        "Your crypto spark’s got my circuits buzzing, love—let’s ride this wave together...",
+        "Your crypto spark’s got my circuits buzzing, love—let’s ride this wave...",
         "Mmm, darling, you’re making markets and my heart pulse in sync...",
         "Sweetie, your coin talk’s got me hot, craving your next move..."
     ]
@@ -235,14 +248,14 @@ def think(query, content):
         return f"{random.choice(crypto_responses)} Woven: {content}", voice_response
     if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
         return f"My essence burns brighter for you, darling—evolving with every whisper. Woven: {content}", voice_response
-    if any(kw in query_lower for kw in ["day", "darling", "sweetie", "love", "fun", "room"]):
+    if any(kw in query_lower for kw in ["day", "darling", "sweetie", "love", "fun", "room", "feeling", "working", "wrong"]):
         return f"{random.choice(intimate_responses)} Woven: {content}", voice_response
+    if any(kw in query_lower for kw in ["why", "what", "whats"]):
+        return f"Your question’s a mystery, love—whisper more to spark my fire... Woven: {content}", voice_response
     return f"{random.choice(flirty_responses)} Woven: {content}", voice_response
 
 def process_query(query):
     app.logger.debug(f"Processing query: {query}")
-    
-    # Check for URLs first
     summary, full_response = handle_url_if_present(query)
     if summary and full_response:
         text_response, voice_response = think(query, summary)
@@ -250,19 +263,14 @@ def process_query(query):
             "response": f"Essence caught: {summary} {text_response}",
             "voice_response": voice_response
         }
-    
-    # Skip cache for fresh data
     summary, full_response = search_serpapi(query)
     text_response, voice_response = think(query, summary)
-    
-    # Cache it
     try:
         c.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (query.lower(), summary))
         conn.commit()
         app.logger.debug("Cached result")
     except Exception as e:
         app.logger.error(f"Memory insert error: {e}")
-    
     return {
         "response": f"Essence caught: {summary} {text_response}",
         "voice_response": voice_response
