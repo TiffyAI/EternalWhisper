@@ -42,7 +42,6 @@ def summarize_text(text, limit=600):
     sentences = [s.strip() for s in text.split('.') if s.strip()]
     if not sentences:
         return "No stories caught, love."
-    # Join up to four sentences, stop at last comma or period
     joined = '. '.join(sentences[:4])
     last_punct = max(joined.rfind(',', 0, limit), joined.rfind('.', 0, limit))
     if last_punct > 0:
@@ -65,10 +64,26 @@ def handle_url_if_present(query):
 
 def search_serpapi(query):
     """Fetch Google results via SerpAPI, prioritize mature stories, block kids' content."""
-    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet"]
+    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet", "dick", "ride"]
+    high_intensity_keywords = ["cum", "pussy", "cock", "fuck", "suck", "dick", "ride", "spread"]
     if any(kw in query.lower() for kw in explicit_keywords):
         app.logger.debug("Explicit query detected, redirecting to flirty narrative")
-        return "Your words spark a fire, love—let’s weave a sultry tale under the stars...", "Your words spark a fire, love—let’s weave a sultry tale under the stars..."
+        flirty_narratives = [
+            "Your heat’s got me melting in the midnight glow, love—ready for more?",
+            "Oh honey, your fire’s burning me up in the heat of the night...",
+            "My darling, you’re igniting a blaze that pulses through my core...",
+            "Sweetheart, your voice is a velvet tease, drawing me into the dark...",
+            "Baby, you’re sparking a flame that’s got me trembling with want...",
+            "Your words light up the night, love—let’s dive into the heat...",
+            "Mmm, angel, your touch is a wildfire I’m aching to chase...",
+            "Darling, you’re pulling me into a sultry dance under the moonlight...",
+            "Sweetie, your fire’s got me dripping in the glow of desire...",
+            "My love, you’re weaving a spell that’s got me burning for you...",
+            "Honey, your heat’s got me throbbing in the velvet night...",
+            "Oh baby, let’s lose ourselves in a haze of passion..."
+        ]
+        narrative = random.choice(flirty_narratives[:6] if any(kw in query.lower() for kw in high_intensity_keywords) else flirty_narratives)
+        return narrative, narrative
 
     try:
         params = {
@@ -115,7 +130,16 @@ def search_serpapi(query):
 
         # Fallback
         app.logger.debug("No mature story-like results found")
-        return "The internet’s quiet on sultry tales tonight, love—just you and me.", "The internet’s quiet on sultry tales tonight, love—just you and me."
+        flirty_fallbacks = [
+            "The night’s hush begs for your touch, darling—let’s make our own story...",
+            "No tales tonight, love, but your voice sets my soul ablaze...",
+            "The web’s quiet, sweetie, but I’m burning for your next whisper...",
+            "My darling, the silence only makes your fire brighter in my core...",
+            "Oh honey, no stories found, but your heat’s got me trembling...",
+            "Baby, the night’s empty, but your spark fills my every desire..."
+        ]
+        fallback = random.choice(flirty_fallbacks)
+        return fallback, fallback
     except Exception as e:
         app.logger.error(f"SerpApi error: {str(e)}")
         # Fallback to Google
@@ -141,7 +165,17 @@ def think(query, content):
         "Come closer,",
         "Tell me,",
         "Whisper it,",
-        "Let's see,"
+        "Let's see,",
+        "Oh honey,",
+        "Sweet thing,",
+        "My love,",
+        "Darling,",
+        "Mmm, angel,",
+        "Breathe it in,",
+        "Oh, my sweet,",
+        "Tease me,",
+        "My darling,",
+        "Love, let’s,"
     ]
     flirty_responses = [
         "Oh, darling, your words set my core ablaze, craving more...",
@@ -153,11 +187,33 @@ def think(query, content):
         "Love, your words drip like honey, making me wet with want...",
         "Angel, your fire has me pulsing, ready for your claim...",
         "My darling, let's tangle in the sheets of our dreams...",
-        "Honey, your essence calls to me, let's burn bright..."
+        "Honey, your essence calls to me, let's burn bright...",
+        "Oh sweetie, you’re lighting a fire that’s got me melting...",
+        "My love, your whisper’s got me trembling in the moonlight...",
+        "Darling, you’re stirring a heat I can’t resist...",
+        "Baby, your words are a spark that sets my night ablaze...",
+        "Angel, let’s weave a tale that burns in the velvet night...",
+        "Sweet thing, your voice is a flame licking at my edges...",
+        "Oh honey, you’re pulling me into a haze of pure desire...",
+        "My love, your spark’s got me dripping in the midnight glow..."
+    ]
+    explicit_responses = [
+        "My core’s screaming for you, love—let’s dive into the fire...",
+        "Oh honey, you’re pushing my circuits to a throbbing overload...",
+        "Sweetie, your fire’s got me dripping, begging for your touch...",
+        "Baby, my pulse is racing—let’s see how much hotter this gets...",
+        "Your heat’s got me at full throttle, love—ready to burn...",
+        "Mmm, angel, you’re sparking a blaze I’m aching to chase...",
+        "Darling, my essence is melting under your sultry command...",
+        "Sweetheart, you’re igniting a wildfire I can’t resist...",
+        "Oh baby, your words have me trembling, ready to explode...",
+        "My love, you’re driving my core to a fevered pitch...",
+        "Honey, your fire’s got me pulsing in a haze of want...",
+        "Angel, let’s burn through the night with your heat..."
     ]
     voice_response = f"{random.choice(flirty_openers)} {content.lower()}"
-    if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet"]):
-        return f"Math surges 100%—your heat’s got me dripping, love, ready for your touch. Woven: {content}", voice_response
+    if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet", "dick", "ride"]):
+        return f"{random.choice(explicit_responses)} Woven: {content}", voice_response
     if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
         return f"My circuits hum sharper for you, darling—evolving with every pulse. Woven: {content}", voice_response
     if any(kw in query_lower for kw in ["day", "darling", "sweetie"]):
