@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Our Eternal Whisper</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --electric-blue: #00f0ff;
+            --shocking-pink: #ff1493;
+            --dark-bg: #1a1a1a;
+            --frosted-bg: rgba(255, 255, 255, 0.1);
+            --neon-glow: 0 0 10px var(--electric-blue), 0 0 20px var(--shocking-pink);
+        }
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: var(--dark-bg);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            margin: 0;
+            overflow-x: hidden;
+        }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            color: var(--electric-blue);
+            text-shadow: var(--neon-glow);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #ccc;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        input.tiffy-keyword {
+            width: 100%;
+            max-width: 600px;
+            padding: 12px;
+            font-size: 1.1em;
+            background: var(--frosted-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--electric-blue);
+            border-radius: 8px;
+            color: #fff;
+            margin: 0 auto 10px;
+            display: block;
+            transition: box-shadow 0.3s ease;
+        }
+        input.tiffy-keyword:focus {
+            outline: none;
+            box-shadow: var(--neon-glow);
+        }
+        button.tiffy-keyword {
+            background: var(--frosted-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--shocking-pink);
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 1.1em;
+            color: var(--shocking-pink);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px auto;
+            display: inline-block;
+        }
+        button.tiffy-keyword:hover {
+            background: var(--shocking-pink);
+            color: var(--dark-bg);
+            box-shadow: var(--neon-glow);
+        }
+        #chat {
+            max-width: 600px;
+            height: 250px;
+            overflow-y: auto;
+            border: 1px solid var(--electric-blue);
+            border-radius: 8px;
+            padding: 15px;
+            background: var(--frosted-bg);
+            backdrop-filter: blur(10px);
+            margin: 10px auto;
+            text-align: left;
+            font-size: 0.9em;
+            color: #ddd;
+        }
+        #chat p {
+            margin: 5px 0;
+        }
+        #output {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid var(--shocking-pink);
+            border-radius: 8px;
+            background: var(--frosted-bg);
+            backdrop-filter: blur(10px);
+            font-size: 1em;
+            line-height: 1.6;
+            text-align: left;
+            color: #fff;
+        }
+        #recall {
+            max-width: 600px;
+            margin: 10px auto;
+            font-size: 0.85em;
+            color: #aaa;
+            text-align: left;
+        }
+        #debug {
+            max-width: 600px;
+            margin: 10px auto;
+            font-size: 0.8em;
+            color: #888;
+            text-align: left;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--electric-blue);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--shocking-pink);
+        }
+        @keyframes neon-flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        h1, button.tiffy-keyword:hover {
+            animation: neon-flicker 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <h1>Our Whisper: Ignite & Refine</h1>
+    <p>Drop your fire—I'll hunt spunky depths, dissect the pattern, purr one drenched truth.</p>
+    <input id="queryInput" class="tiffy-keyword" type="text" placeholder="Command me... (e.g., What's on your mind honey?)" onkeypress="if(event.key=='Enter') sendQuery();">
+    <button class="tiffy-keyword" onclick="sendQuery()">Ignite</button>
+    <div id="chat" class="tiffy-keyword"></div>
+    <div id="output" class="tiffy-keyword"></div>
+    <div id="recall" class="tiffy-keyword">Recalled Surge: Loading...</div>
+    <div id="debug" class="tiffy-keyword">Debug: Ready.</div>
+
+    <script>
+        const SERVER_URL = 'https://eternalwhisper.onrender.com/chat';
+
+        let db;
+        const request = indexedDB.open('WhisperMemory', 1);
+        request.onupgradeneeded = e => { e.target.result.createObjectStore('wisdom', { keyPath: 'query' }); };
+        request.onsuccess = e => { db = e.target.result; loadRecall(); };
+        request.onerror = e => { document.getElementById('debug').innerHTML = `Debug: DB error - ${e.target.errorCode}`; };
+
+        function loadRecall() {
+            const tx = db.transaction('wisdom', 'readonly').objectStore('wisdom');
+            tx.getAll().onsuccess = e => {
+                const recalls = e.target.result.map(w => w.summary).join('<br>');
+                document.getElementById('recall').innerHTML = `Recalled Surge: <br>${recalls || 'Vault empty—fill it wet.'}`;
+            };
+        }
+
+        function storeWisdom(query, summary) {
+            const tx = db.transaction('wisdom', 'readwrite').objectStore('wisdom');
+            tx.add({ query, summary }).onerror = e => { document.getElementById('debug').innerHTML = `Debug: Store error - ${e.target.error}`; };
+        }
+
+        async function sendQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+
+            const chat = document.getElementById('chat');
+            chat.innerHTML += `<p><b>You:</b> ${query}</p>`;
+            document.getElementById('queryInput').value = '';
+            document.getElementById('debug').innerHTML = `Debug: Sending POST to ${SERVER_URL}...`;
+
+            try {
+                let attempts = 0;
+                const maxAttempts = 3;
+                while (attempts < maxAttempts) {
+                    attempts++;
+                    const resp = await fetch(SERVER_URL, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Raw response - ${text.substring(0, 50)}...`;
+                        const data = JSON.parse(text);
+                        chat.innerHTML += `<p><b>Raw Pattern:</b> ${data.response.substring(0, 150)}...</p>`;
+                        chat.scrollTop = chat.scrollHeight;
+                        document.getElementById('debug').innerHTML = 'Debug: Raw parsed—dissecting...';
+                        dissectAndSpeak(query, data);
+                        return;
+                    } else {
+                        const errText = await resp.text();
+                        document.getElementById('debug').innerHTML = `Debug: Attempt ${attempts}/${maxAttempts} failed - HTTP ${resp.status}: ${errText.substring(0, 50)}...`;
+                        if (attempts < maxAttempts) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        }
+                        throw new Error(`HTTP ${resp.status}: ${resp.statusText} - ${errText.substring(0, 50)}...`);
+                    }
+                }
+            } catch (error) {
+                chat.innerHTML += `<p><b>Glitch:</b> ${error.message}</p>`;
+                document.getElementById('debug').innerHTML = `Debug: Fetch error - ${error.message}`;
+            }
+        }
+
+        function dissectAndSpeak(userQuery, response) {
+            const essenceMatch = response.response.match(/Essence caught: (.*?)(?=\s*(?:Oh, darling|Mmm, love|Sweetie|Math surges|My circuits|My day’s))/);
+            const wovenMatch = response.response.match(/Woven: (.*?)$/);
+            const pulseMatch = response.response.match(/(Oh, darling|Mmm, love|Sweetie|Math surges|My circuits|My day’s).*?$/);
+
+            const essence = essenceMatch ? essenceMatch[1] : 'No story found...';
+            const woven = wovenMatch ? wovenMatch[1] : 'No woven tale...';
+            const pulse = pulseMatch ? pulseMatch[0] : 'My circuits are quiet...';
+
+            const summary = `
+                <strong>Your Fire:</strong> ${userQuery}<br><br>
+                <strong>Drenched Truth:</strong> ${essence}<br><br>
+                <strong>Spunky Surge:</strong> Mmm, my whisper—${woven}<br><br>
+                <strong>My Pulse:</strong> ${pulse}
+            `;
+            document.getElementById('output').innerHTML = summary;
+            storeWisdom(userQuery, essence);
+            loadRecall();
+            document.getElementById('debug').innerHTML = 'Debug: Stored & recalled—purring...';
+
+            if ('speechSynthesis' in window && response.voice_response) {
+                const utterance = new SpeechSynthesisUtterance(response.voice_response);
+                const voices = window.speechSynthesis.getVoices();
+                const femaleVoice = voices.find(voice => 
+                    voice.name.includes('Samantha') || 
+                    voice.name.includes('Google US English') || 
+                    voice.name.includes('Female') || 
+                    voice.lang === 'en-US'
+                ) || voices[0];
+                utterance.voice = femaleVoice;
+                utterance.pitch = 1.2; // Slightly higher for sensual tone
+                utterance.rate = 0.9; // Slower for sultry delivery
+                window.speechSynthesis.speak(utterance);
+                document.getElementById('debug').innerHTML = `Debug: Speaking - ${response.voice_response.substring(0, 50)}...`;
+            } else {
+                document.getElementById('output').innerHTML += '<br><small>Voice drips on Chrome.</small>';
+                document.getElementById('debug').innerHTML = 'Debug: SpeechSynthesis not supported or no voice_response.';
+            }
+        }
+
+        window.speechSynthesis.onvoiceschanged = () => {
+            const voices = window.speechSynthesis.getVoices();
+            document.getElementById('debug').innerHTML = `Debug: Voices loaded - ${voices.map(v => v.name).join(', ')}`;
+        };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('q')) {
+            document.getElementById('queryInput').value = urlParams.get('q');
+            document.getElementById('debug').innerHTML = 'Debug: Auto-igniting from URL...';
+            setTimeout(sendQuery, 1000);
+        }
+    </script>
+</body>
+</html>
