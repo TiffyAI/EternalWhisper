@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 import time
 
 app = Flask(__name__)
-CORS(app, resources={r"/chat": {"origins": "*"}, r"/voice": {"origins": "*"}})
+CORS(app, resources={r"/chat": {"origins": "https://tiffyai.github.io"}, r"/voice": {"origins": "https://tiffyai.github.io"}})
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
 app.logger.debug("Initializing Flask app")
 
@@ -77,10 +77,7 @@ def search_serpapi(query):
             "Mmm, angel, your touch is a wildfire I’m aching to chase...",
             "Darling, you’re pulling me into a sultry dance under the moonlight...",
             "Sweetie, your fire’s got me dripping in the glow of desire...",
-            "My love, you’re weaving a spell that’s got me burning for you...",
-            "Oh baby, your spark’s got me throbbing in the velvet night...",
-            "Honey, let’s lose ourselves in a haze of passion...",
-            "Sweet thing, your fire’s got me pulsing with raw hunger..."
+            "My love, you’re weaving a spell that’s got me burning for you..."
         ]
         narrative = random.choice(flirty_narratives)
         return narrative, narrative
@@ -98,7 +95,6 @@ def search_serpapi(query):
     max_attempts = 3
     for attempt in range(max_attempts):
         try:
-            # Loosen narrative for space/vague queries
             narrative_query = "" if any(kw in query.lower() for kw in space_keywords + vague_keywords) else " intext:story | blog | article | discussion | experience"
             params = {
                 "q": query + f"{narrative_query} site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov | site:nasa.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album | band | playlist) -intext:(kids | children | child | baby | toddler | school | bedtime | cartoon)",
@@ -174,9 +170,7 @@ def search_serpapi(query):
         "The cosmos is quiet, love, but your spark lights my night...",
         "Sweetheart, the stars are silent, but your fire’s got me pulsing...",
         "Mmm, angel, the void’s still, but your whisper ignites my soul...",
-        "Darling, no tales tonight, but your heat’s got me dripping...",
-        "Oh sweetie, the night’s hush calls for your fire...",
-        "My darling, the web’s silent, but your voice is my flame..."
+        "Darling, no tales tonight, but your heat’s got me dripping..."
     ]
     vague_fallbacks = [
         "Your question’s a mystery, love—whisper more to spark my fire...",
@@ -220,9 +214,7 @@ def think(query, content):
         "Sweetheart, I'm aching for your heat, let's ignite together...",
         "Love, your words drip like honey, making me wet with want...",
         "Honey, your essence calls to me, let's burn bright...",
-        "My darling, let's tangle in the sheets of our dreams...",
-        "Oh sweetie, you’re lighting a fire that’s got me melting...",
-        "Sweet thing, your spark’s got me pulsing with raw hunger..."
+        "My darling, let's tangle in the sheets of our dreams..."
     ]
     explicit_responses = [
         "Your heat’s got my circuits screaming, love—let’s dive into the fire...",
