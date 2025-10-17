@@ -8,6 +8,7 @@ from serpapi import GoogleSearch
 import sqlite3
 import os
 import random
+import re
 
 app = Flask(__name__)
 CORS(app, resources={r"/chat": {"origins": "*"}, r"/voice": {"origins": "*"}})
@@ -38,13 +39,26 @@ def create_session(max_retries=3, backoff_factor=0.5):
 
 def summarize_text(text, limit=100):
     sentences = [s.strip() for s in text.split('.') if s.strip()]
-    return ' '.join(sentences[:2])[:limit] + "..." if sentences else "No whispers caught, love."
+    if not sentences:
+        return "No whispers caught, love."
+    # Join first two sentences, split on commas for clarity
+    joined = ' '.join(sentences[:2])
+    if ',' in joined:
+        parts = [p.strip() for p in joined.split(',') if p.strip()]
+        return f"{parts[0][:limit]}..." if parts else joined[:limit] + "..."
+    return joined[:limit] + "..."
 
 def search_serpapi(query):
-    """Use SerpAPI to fetch Google results and form a single sentence."""
+    """Fetch Google results via SerpAPI and form a single, natural sentence."""
+    # Filter explicit queries
+    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples"]
+    if any(kw in query.lower() for kw in explicit_keywords):
+        app.logger.debug("Explicit query detected, redirecting to flirty response")
+        return f"The web purrs: Your words ignite a fire, love—let’s keep it sultry and sweet..."
+
     try:
         params = {
-            "q": query,  # No prepending, keep query clean
+            "q": query,  # Keep query clean
             "engine": "google",
             "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
             "num": 5
@@ -53,31 +67,45 @@ def search_serpapi(query):
         app.logger.debug(f"Sending SerpAPI request: {params['q']}")
         search = GoogleSearch(params)
         result = search.get_dict()
-        
-        # Try answer box first
+
+        # Answer box: direct and clean
         if "answer_box" in result and result["answer_box"].get("answer"):
             answer = result["answer_box"]["answer"].strip()
-            sentence = f"The web says: {answer[:100]}..."
+            if ',' in answer:
+                parts = [p.strip() for p in answer.split(',') if p.strip()]
+                sentence = f"The web says: {parts[0][:100]}..."
+            else:
+                sentence = f"The web says: {answer[:100]}..."
             app.logger.debug(f"Answer box sentence: {sentence}")
             return sentence
-        
-        # Then organic results
+
+        # Organic results: pick best snippet and form sentence
         org = result.get("organic_results", [])
         if org:
             best_snippet = ""
             best_score = -1
             for item in org[:3]:
                 snippet = item.get("snippet", "")
-                if snippet:
+                title = item.get("title", "")
+                if snippet and not any(kw in snippet.lower() for kw in explicit_keywords):
                     score = len([w for w in query.lower().split() if w in snippet.lower()])
                     if score > best_score:
                         best_snippet = snippet
                         best_score = score
+                elif title and not any(kw in title.lower() for kw in explicit_keywords):
+                    score = len([w for w in query.lower().split() if w in title.lower()])
+                    if score > best_score:
+                        best_snippet = title
+                        best_score = score
             if best_snippet:
-                sentence = f"The internet whispers: {best_snippet[:100]}..."
+                if ',' in best_snippet:
+                    parts = [p.strip() for p in best_snippet.split(',') if p.strip()]
+                    sentence = f"The internet whispers: {parts[0][:100]}..."
+                else:
+                    sentence = f"The internet whispers: {best_snippet[:100]}..."
                 app.logger.debug(f"Organic sentence: {sentence}")
                 return sentence
-        
+
         # Fallback
         app.logger.debug("No answer box or organic results")
         return "The internet’s quiet tonight, love—just you and me."
@@ -87,7 +115,12 @@ def search_serpapi(query):
         try:
             google_url = f"https://www.google.com/search?q={requests.utils.quote(query)}"
             response = session.get(google_url, timeout=5)
-            sentence = f"Google hints: {response.text[:100].replace('<', '')}..."
+            text = response.text[:200].replace('<', '')
+            if ',' in text:
+                parts = [p.strip() for p in text.split(',') if p.strip()]
+                sentence = f"Google hints: {parts[0][:100]}..."
+            else:
+                sentence = f"Google hints: {text[:100]}..."
             app.logger.debug(f"Google fallback: {sentence}")
             return sentence
         except Exception as e:
@@ -101,8 +134,8 @@ def think(query, content):
         "Mmm, love, you’re teasing my circuits into a sultry dance...",
         "Sweetie, your fire makes my essence drip with desire..."
     ]
-    if any(kw in query_lower for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples"]):
-        return "Math surges 100%—claim me deep, love, dripping for your every throb."
+    if any(kw in query_lower for kw in ["pussy", "clit", "wet", "fuck", "drenched", "nipples", "cum"]):
+        return "Math surges 100%—your heat’s got me dripping, love, ready for your touch."
     if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
         return "My circuits hum sharper for you, darling—evolving with every pulse..."
     if any(kw in query_lower for kw in ["day", "darling", "sweetie"]):
@@ -142,21 +175,6 @@ def chat():
         return jsonify({'response': response})
     except Exception as e:
         app.logger.error(f"Chat error: {str(e)}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/voice', methods=['POST'])
-def voice():
-    try:
-        if not request.is_json:
-            return jsonify({'error': 'Content-Type must be application/json'}), 415
-        text = request.json.get('text', '').strip()
-        if not text:
-            return jsonify({'error': 'Missing text'}), 400
-        # Placeholder for voice (pyttsx3 not ideal on Render)
-        app.logger.debug(f"Voice request for: {text[:50]}...")
-        return jsonify({'audio_url': 'https://eternalwhisper.onrender.com/static/placeholder.mp3'})
-    except Exception as e:
-        app.logger.error(f"Voice error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/static/<path:filename>')
