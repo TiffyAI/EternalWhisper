@@ -42,7 +42,7 @@ def summarize_text(text, limit=500):
     sentences = [s.strip() for s in text.split('.') if s.strip()]
     if not sentences:
         return "No stories caught, love."
-    # Join up to three sentences for a rich story, use comma for narrative flow
+    # Join up to three sentences for a rich story
     joined = '. '.join(sentences[:3])
     if ',' in joined:
         parts = [p.strip() for p in joined.split(',') if p.strip()]
@@ -73,7 +73,7 @@ def search_serpapi(query):
 
     try:
         params = {
-            "q": query + " site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(spotify | youtube | imdb | amazon | apple | soundcloud | deezer | lyrics | trailer | movie | song)",
+            "q": query + " site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song)",
             "engine": "google",
             "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
             "num": 5
@@ -87,7 +87,7 @@ def search_serpapi(query):
         if "answer_box" in result and result["answer_box"].get("answer"):
             answer = result["answer_box"]["answer"].strip()
             if ',' in answer:
-                parts = [p.strip() for p in answer.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["spotify", "youtube", "song", "movie", "trailer"])]
+                parts = [p.strip() for p in answer.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify"])]
                 sentence = f"The web tells a story: {parts[0][:500].capitalize()}..." if parts else f"The web tells a story: {answer[:500].capitalize()}..."
             else:
                 sentence = f"The web tells a story: {answer[:500].capitalize()}..."
@@ -103,24 +103,24 @@ def search_serpapi(query):
                 snippet = item.get("snippet", "")
                 title = item.get("title", "")
                 link = item.get("link", "")
-                # Skip music/movie sources
-                if any(kw in link.lower() for kw in ["spotify", "youtube", "imdb", "amazon", "apple", "soundcloud", "deezer"]):
+                # Skip video/music sources
+                if any(kw in link.lower() for kw in ["youtube", "spotify", "imdb", "amazon", "apple", "soundcloud", "deezer", "vimeo", "dailymotion"]):
                     continue
-                # Boost score for narrative sources
-                source_boost = 15 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
-                if snippet and not any(kw in snippet.lower() for kw in explicit_keywords + ["song", "movie", "trailer", "spotify", "youtube"]):
-                    score = len([w for w in query.lower().split() if w in snippet.lower()]) + source_boost + (5 if len(snippet) > 50 else 0)
+                # Boost score for narrative sources and longer snippets
+                source_boost = 20 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
+                if snippet and not any(kw in snippet.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify"]):
+                    score = len([w for w in query.lower().split() if w in snippet.lower()]) + source_boost + (10 if len(snippet) > 100 else 0)
                     if score > best_score:
                         best_snippet = snippet
                         best_score = score
-                elif title and not any(kw in title.lower() for kw in explicit_keywords + ["song", "movie", "trailer", "spotify", "youtube"]):
-                    score = len([w for w in query.lower().split() if w in title.lower()]) + source_boost + (5 if len(title) > 30 else 0)
+                elif title and not any(kw in title.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify"]):
+                    score = len([w for w in query.lower().split() if w in title.lower()]) + source_boost + (10 if len(title) > 50 else 0)
                     if score > best_score:
                         best_snippet = title
                         best_score = score
             if best_snippet:
                 if ',' in best_snippet:
-                    parts = [p.strip() for p in best_snippet.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["song", "movie", "trailer"])]
+                    parts = [p.strip() for p in best_snippet.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer"])]
                     sentence = f"The web tells a story: {parts[0][:500].capitalize()}..." if parts else f"The web tells a story: {best_snippet[:500].capitalize()}..."
                 else:
                     sentence = f"The web tells a story: {best_snippet[:500].capitalize()}..."
@@ -138,7 +138,7 @@ def search_serpapi(query):
             response = session.get(google_url, timeout=5)
             text = response.text[:500].replace('<', '')
             if ',' in text:
-                parts = [p.strip() for p in text.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["song", "movie", "trailer"])]
+                parts = [p.strip() for p in text.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer"])]
                 sentence = f"Google hints at a story: {parts[0][:500].capitalize()}..." if parts else f"Google hints at a story: {text[:500].capitalize()}..."
             else:
                 sentence = f"Google hints at a story: {text[:500].capitalize()}..."
