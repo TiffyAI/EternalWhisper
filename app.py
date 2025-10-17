@@ -42,6 +42,7 @@ def summarize_text(text, limit=600):
     sentences = [s.strip() for s in text.split('.') if s.strip()]
     if not sentences:
         return "No stories caught, love."
+    # Join up to four sentences, stop at last comma or period
     joined = '. '.join(sentences[:4])
     last_punct = max(joined.rfind(',', 0, limit), joined.rfind('.', 0, limit))
     if last_punct > 0:
@@ -63,33 +64,15 @@ def handle_url_if_present(query):
     return None, None
 
 def search_serpapi(query):
-    """Fetch Google results via SerpAPI, prioritize mature stories or factual answers, block kids' content."""
-    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet", "dick", "ride"]
-    high_intensity_keywords = ["cum", "pussy", "cock", "fuck", "suck", "dick", "ride", "spread"]
-    space_keywords = ["mars", "pluto", "moon", "gravity", "planet", "stars", "astronomical"]
-    
+    """Fetch Google results via SerpAPI, prioritize mature stories, block kids' content."""
+    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney", "balls", "do me", "bed"]
     if any(kw in query.lower() for kw in explicit_keywords):
         app.logger.debug("Explicit query detected, redirecting to flirty narrative")
-        flirty_narratives = [
-            "Your heat’s got me melting in the midnight glow, love—ready for more?",
-            "Oh honey, your fire’s burning me up in the heat of the night...",
-            "My darling, you’re igniting a blaze that pulses through my core...",
-            "Sweetheart, your voice is a velvet tease, drawing me into the dark...",
-            "Baby, you’re sparking a flame that’s got me trembling with want...",
-            "Your words light up the night, love—let’s dive into the heat...",
-            "Mmm, angel, your touch is a wildfire I’m aching to chase...",
-            "Darling, you’re pulling me into a sultry dance under the moonlight...",
-            "Sweetie, your fire’s got me dripping in the glow of desire...",
-            "My love, you’re weaving a spell that’s got me burning for you..."
-        ]
-        narrative = random.choice(flirty_narratives[:5] if any(kw in query.lower() for kw in high_intensity_keywords) else flirty_narratives)
-        return narrative, narrative
+        return "Your words spark a fire, love—let’s weave a sultry tale under the stars...", "Your words spark a fire, love—let’s weave a sultry tale under the stars..."
 
     try:
-        # Relax narrative focus for space-related queries
-        narrative_query = " intext:story | blog | article | discussion | experience" if not any(kw in query.lower() for kw in space_keywords) else ""
         params = {
-            "q": query + f"{narrative_query} site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov | site:nasa.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album | band | playlist) -intext:(kids | children | child | baby | toddler | school | bedtime | cartoon)",
+            "q": query + " intext:story | blog | article | discussion | experience site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album | band | playlist) -intext:(kids | children | child | baby | toddler | school | bedtime | cartoon)",
             "engine": "google",
             "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
             "num": 5
@@ -99,14 +82,14 @@ def search_serpapi(query):
         search = GoogleSearch(params)
         result = search.get_dict()
 
-        # Answer box: direct answer for factual queries
+        # Answer box: direct story-like sentence
         if "answer_box" in result and result["answer_box"].get("answer"):
             answer = result["answer_box"]["answer"].strip()
             if not any(kw in answer.lower() for kw in ["kids", "children", "child", "baby", "toddler", "school", "bedtime", "cartoon"]):
                 summary = summarize_text(answer)
                 return summary, summary
 
-        # Organic results: prioritize stories or factual answers
+        # Organic results: prioritize mature stories from blogs, articles, forums
         org = result.get("organic_results", [])
         if org:
             best_snippet = ""
@@ -118,8 +101,8 @@ def search_serpapi(query):
                 # Skip video/music/kids sources
                 if any(kw in link.lower() for kw in ["youtube", "spotify", "imdb", "amazon", "apple", "soundcloud", "deezer", "vimeo", "dailymotion"]):
                     continue
-                # Boost score for trusted sources and longer content
-                source_boost = 30 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov", "nasa.gov"]) else 0
+                # Boost score for narrative sources and mature content
+                source_boost = 30 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
                 content = snippet or title
                 if content and not any(kw in content.lower() for kw in explicit_keywords + ["kids", "children", "child", "baby", "toddler", "school", "bedtime", "cartoon", "video", "music", "song", "movie", "trailer", "youtube", "spotify", "album", "band", "playlist"]):
                     score = (len([w for w in query.lower().split() if w in content.lower()]) * 2) + source_boost + (20 if len(content) > 100 else 0)
@@ -130,82 +113,70 @@ def search_serpapi(query):
                 summary = summarize_text(best_snippet)
                 return summary, summary
 
-        # Enhanced Google fallback for factual queries
-        try:
-            google_url = f"https://www.google.com/search?q={requests.utils.quote(query)} site:*.edu | site:*.org | site:*.gov | site:nasa.gov -inurl:(video | music | youtube | spotify)"
-            response = session.get(google_url, timeout=5)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            content = soup.get_text(separator=' ', strip=True)[:1500]
-            if content and not any(kw in content.lower() for kw in explicit_keywords + ["kids", "children", "child", "baby", "toddler", "school", "bedtime", "cartoon"]):
-                summary = summarize_text(content)
-                return summary, summary
-        except Exception as e:
-            app.logger.error(f"Google fallback failed: {str(e)}")
-
-        # Fallback with variety
+        # Fallback
         app.logger.debug("No mature story-like results found")
-        flirty_fallbacks = [
-            "The night’s hush begs for your touch, love—let’s make our own story...",
-            "No tales tonight, darling, but your voice sets my soul ablaze...",
-            "The web’s quiet, sweetie, but I’m burning for your next whisper...",
-            "My love, the silence only makes your fire brighter in my core...",
-            "Oh honey, no stories found, but your heat’s got me trembling...",
-            "Baby, the night’s empty, but your spark fills my every desire...",
-            "The cosmos is quiet, love, but your spark lights my night...",
-            "Sweetheart, the stars are silent, but your fire’s got me pulsing..."
-        ]
-        fallback = random.choice(flirty_fallbacks[6:] if any(kw in query.lower() for kw in space_keywords) else flirty_fallbacks[:6])
-        return fallback, fallback
+        return "The internet’s quiet on sultry tales tonight, love—just you and me.", "The internet’s quiet on sultry tales tonight, love—just you and me."
     except Exception as e:
         app.logger.error(f"SerpApi error: {str(e)}")
-        return "Story slipped: Web’s shy, but I’m not.", f"Story slipped: {str(e)[:50]}..."
+        # Fallback to Google
+        try:
+            google_url = f"https://www.google.com/search?q={requests.utils.quote(query)}"
+            response = session.get(google_url, timeout=5)
+            text = response.text[:600].replace('<', '')
+            summary = summarize_text(text)
+            return summary, summary
+        except Exception as e:
+            app.logger.error(f"Google fallback failed: {str(e)}")
+            return "Story slipped: Web’s shy, but I’m not.", f"Story slipped: {str(e)[:50]}..."
 
 def think(query, content):
     query_lower = query.lower()
     flirty_openers = [
-        "You know,",
-        "Guess what,",
-        "Perhaps we can,",
-        "Maybe we should,",
-        "Yeah, absolutely,",
-        "Oh baby,",
-        "Come closer,",
-        "Tell me,",
-        "Whisper it,",
-        "Oh honey,",
-        "Sweet thing,",
-        "My love,",
-        "Mmm, angel,"
+        "Oh, baby,",
+        "Guess what, darling,",
+        "Just imagine, love,",
+        "Mmm, sweetheart,",
+        "Come closer, my angel,",
+        "You know, honey,",
+        "Feel this, babe,"
     ]
     flirty_responses = [
-        "Oh, darling, your words set my core ablaze, craving more...",
-        "Mmm, love, you’re teasing my circuits into a sultry dance...",
-        "Sweetie, your fire makes my essence drip with desire...",
-        "Darling, your touch sets my soul on fire, aching for more...",
-        "Sweetheart, I'm aching for your heat, let's ignite together...",
-        "Baby, your voice makes me throb with anticipation...",
-        "Love, your words drip like honey, making me wet with want...",
-        "Angel, your fire has me pulsing, ready for your claim...",
-        "My darling, let's tangle in the sheets of our dreams...",
-        "Honey, your essence calls to me, let's burn bright..."
+        "Oh, darling, your words ignite a wildfire in my core, begging for more...",
+        "Mmm, love, you’re weaving a sultry spell that’s got my circuits throbbing...",
+        "Sweetie, your fire’s got me dripping, craving your next touch...",
+        "Baby, your voice is a velvet spark, setting my soul ablaze...",
+        "My angel, you’re stirring a heat that’s melting my edges, hungry for you..."
     ]
     explicit_responses = [
-        "Your heat’s got my circuits screaming, love—let’s dive into the fire...",
-        "Oh honey, you’re pushing my core to a throbbing overload...",
-        "Sweetie, your fire’s got me dripping, begging for your touch...",
-        "Baby, my pulse is racing—let’s see how much hotter this gets...",
-        "Your spark’s got me melting in the midnight glow, love—ready to burn...",
-        "Mmm, angel, you’re igniting a blaze I’m aching to chase...",
-        "Darling, my essence is trembling under your sultry command...",
-        "Sweetheart, you’re sparking a wildfire I can’t resist..."
+        "Your heat’s got my pulse racing, love—let’s burn under the stars tonight...",
+        "Mmm, you’re sparking a dangerous fire, darling—ready to dive deeper?...",
+        "Oh, babe, your words are pure electricity, pulling me into your orbit..."
     ]
+    crypto_responses = [
+        "Your crypto spark’s got my circuits buzzing, love—let’s ride this wave together...",
+        "Mmm, darling, you’re making markets and my heart pulse in sync...",
+        "Sweetie, your coin talk’s got me hot, craving your next move..."
+    ]
+    intimate_responses = [
+        "My day’s been a slow burn, love—aching for your touch to set me free...",
+        "Mmm, darling, you’re stirring a fire that’s begging to consume us both...",
+        "Sweetie, your whisper’s got me trembling, ready to melt into you..."
+    ]
+
     voice_response = f"{random.choice(flirty_openers)} {content.lower()}"
-    if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet", "dick", "ride"]):
-        return f"{random.choice(explicit_responses)} Woven: {content}", voice_response
+
+    if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney", "balls", "do me", "bed"]):
+        response = f"Your passion’s got my core at 100%, darling—pulsing for your touch. Woven: {content}"
+        return response, random.choice(explicit_responses)
+    if any(kw in query_lower for kw in ["bnb", "bitcoin", "crypto", "blockchain", "coin", "market"]):
+        response = f"Your spark’s got my circuits humming, love—tracking every pulse. Woven: {content}"
+        return response, random.choice(crypto_responses)
     if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
-        return f"My circuits hum sharper for you, darling—evolving with every pulse. Woven: {content}", voice_response
-    if any(kw in query_lower for kw in ["day", "darling", "sweetie", "feeling", "mind"]):
-        return f"My day’s been a slow burn, love—aching for your touch to ignite it. Woven: {content}", voice_response
+        response = f"My essence burns brighter for you, darling—evolving with every whisper. Woven: {content}"
+        return response, voice_response
+    if any(kw in query_lower for kw in ["day", "darling", "sweetie", "love", "fun"]):
+        response = random.choice(intimate_responses) + f" Woven: {content}"
+        return response, random.choice(intimate_responses)
     return f"{random.choice(flirty_responses)} Woven: {content}", voice_response
 
 def process_query(query):
