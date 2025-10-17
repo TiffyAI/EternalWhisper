@@ -42,11 +42,8 @@ def summarize_text(text, limit=600):
     sentences = [s.strip() for s in text.split('.') if s.strip()]
     if not sentences:
         return "No stories caught, love."
-    # Join up to four sentences for a rich story
+    # Join up to four sentences for a full story, no comma split to keep flow
     joined = '. '.join(sentences[:4])
-    if ',' in joined:
-        parts = [p.strip() for p in joined.split(',') if p.strip()]
-        return f"{parts[0][:limit].capitalize()}..." if parts else joined[:limit].capitalize() + "..."
     return joined[:limit].capitalize() + "..."
 
 def handle_url_if_present(query):
@@ -73,10 +70,10 @@ def search_serpapi(query):
 
     try:
         params = {
-            "q": query + " intext:story | blog | article site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album)",
+            "q": query + " story site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album)",
             "engine": "google",
             "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
-            "num": 6
+            "num": 5
         }
         session = create_session()
         app.logger.debug(f"Sending SerpAPI request: {params['q']}")
@@ -86,11 +83,7 @@ def search_serpapi(query):
         # Answer box: direct story-like sentence
         if "answer_box" in result and result["answer_box"].get("answer"):
             answer = result["answer_box"]["answer"].strip()
-            if ',' in answer:
-                parts = [p.strip() for p in answer.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album"])]
-                sentence = f"The web tells a story: {parts[0][:600].capitalize()}..." if parts else f"The web tells a story: {answer[:600].capitalize()}..."
-            else:
-                sentence = f"The web tells a story: {answer[:600].capitalize()}..."
+            sentence = f"The web tells a story: {summarize_text(answer)}"
             app.logger.debug(f"Answer box sentence: {sentence}")
             return sentence
 
@@ -99,7 +92,7 @@ def search_serpapi(query):
         if org:
             best_snippet = ""
             best_score = -1
-            for item in org[:6]:
+            for item in org[:5]:
                 snippet = item.get("snippet", "")
                 title = item.get("title", "")
                 link = item.get("link", "")
@@ -107,25 +100,21 @@ def search_serpapi(query):
                 if any(kw in link.lower() for kw in ["youtube", "spotify", "imdb", "amazon", "apple", "soundcloud", "deezer", "vimeo", "dailymotion"]):
                     continue
                 # Boost score for narrative sources and longer snippets
-                source_boost = 25 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
+                source_boost = 20 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
                 if snippet and not any(kw in snippet.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album"]):
-                    score = len([w for w in query.lower().split() if w in snippet.lower()]) + source_boost + (15 if len(snippet) > 150 else 0)
+                    score = len([w for w in query.lower().split() if w in snippet.lower()]) + source_boost + (10 if len(snippet) > 100 else 0)
                     if score > best_score:
                         best_snippet = snippet
                         best_score = score
                 elif title and not any(kw in title.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album"]):
-                    score = len([w for w in query.lower().split() if w in title.lower()]) + source_boost + (15 if len(title) > 50 else 0)
+                    score = len([w for w in query.lower().split() if w in title.lower()]) + source_boost + (10 if len(title) > 50 else 0)
                     if score > best_score:
                         best_snippet = title
                         best_score = score
-            if best_snippet:
-                if ',' in best_snippet:
-                    parts = [p.strip() for p in best_snippet.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "album"])]
-                    sentence = f"The web tells a story: {parts[0][:600].capitalize()}..." if parts else f"The web tells a story: {best_snippet[:600].capitalize()}..."
-                else:
-                    sentence = f"The web tells a story: {best_snippet[:600].capitalize()}..."
-                app.logger.debug(f"Organic sentence: {sentence}")
-                return sentence
+                if best_snippet:
+                    sentence = f"The web tells a story: {summarize_text(best_snippet)}"
+                    app.logger.debug(f"Organic sentence: {sentence}")
+                    return sentence
 
         # Fallback
         app.logger.debug("No story-like results found")
@@ -137,11 +126,7 @@ def search_serpapi(query):
             google_url = f"https://www.google.com/search?q={requests.utils.quote(query)}"
             response = session.get(google_url, timeout=5)
             text = response.text[:600].replace('<', '')
-            if ',' in text:
-                parts = [p.strip() for p in text.split(',') if p.strip() and not any(kw in p.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "album"])]
-                sentence = f"Google hints at a story: {parts[0][:600].capitalize()}..." if parts else f"Google hints at a story: {text[:600].capitalize()}..."
-            else:
-                sentence = f"Google hints at a story: {text[:600].capitalize()}..."
+            sentence = f"Google hints at a story: {summarize_text(text)}"
             app.logger.debug(f"Google fallback: {sentence}")
             return sentence
         except Exception as e:
