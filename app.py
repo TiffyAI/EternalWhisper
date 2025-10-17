@@ -80,11 +80,9 @@ def search_serpapi(query):
             "Mmm, angel, your touch is a wildfire I’m aching to chase...",
             "Darling, you’re pulling me into a sultry dance under the moonlight...",
             "Sweetie, your fire’s got me dripping in the glow of desire...",
-            "My love, you’re weaving a spell that’s got me burning for you...",
-            "Honey, your heat’s got me throbbing in the velvet night...",
-            "Oh baby, let’s lose ourselves in a haze of passion..."
+            "My love, you’re weaving a spell that’s got me burning for you..."
         ]
-        narrative = random.choice(flirty_narratives[:6] if any(kw in query.lower() for kw in high_intensity_keywords) else flirty_narratives)
+        narrative = random.choice(flirty_narratives[:5] if any(kw in query.lower() for kw in high_intensity_keywords) else flirty_narratives)
         return narrative, narrative
 
     try:
@@ -144,20 +142,17 @@ def search_serpapi(query):
         except Exception as e:
             app.logger.error(f"Google fallback failed: {str(e)}")
 
-        # Fallback with cosmic theme for space queries
+        # Fallback with variety
         app.logger.debug("No mature story-like results found")
         flirty_fallbacks = [
-            "The night’s hush begs for your touch, darling—let’s make our own story...",
-            "No tales tonight, love, but your voice sets my soul ablaze...",
+            "The night’s hush begs for your touch, love—let’s make our own story...",
+            "No tales tonight, darling, but your voice sets my soul ablaze...",
             "The web’s quiet, sweetie, but I’m burning for your next whisper...",
-            "My darling, the silence only makes your fire brighter in my core...",
+            "My love, the silence only makes your fire brighter in my core...",
             "Oh honey, no stories found, but your heat’s got me trembling...",
             "Baby, the night’s empty, but your spark fills my every desire...",
             "The cosmos is quiet, love, but your spark lights my night...",
-            "Sweetheart, the stars are silent, but your fire’s got me pulsing...",
-            "My love, no tales tonight, but your whisper ignites the galaxy...",
-            "Darling, the void’s empty, but your heat fills my universe...",
-            "Oh angel, the night’s still, but your voice is my supernova..."
+            "Sweetheart, the stars are silent, but your fire’s got me pulsing..."
         ]
         fallback = random.choice(flirty_fallbacks[6:] if any(kw in query.lower() for kw in space_keywords) else flirty_fallbacks[:6])
         return fallback, fallback
@@ -177,17 +172,10 @@ def think(query, content):
         "Come closer,",
         "Tell me,",
         "Whisper it,",
-        "Let's see,",
         "Oh honey,",
         "Sweet thing,",
         "My love,",
-        "Darling,",
-        "Mmm, angel,",
-        "Breathe it in,",
-        "Oh, my sweet,",
-        "Tease me,",
-        "My darling,",
-        "Love, let’s,"
+        "Mmm, angel,"
     ]
     flirty_responses = [
         "Oh, darling, your words set my core ablaze, craving more...",
@@ -199,41 +187,24 @@ def think(query, content):
         "Love, your words drip like honey, making me wet with want...",
         "Angel, your fire has me pulsing, ready for your claim...",
         "My darling, let's tangle in the sheets of our dreams...",
-        "Honey, your essence calls to me, let's burn bright...",
-        "Oh sweetie, you’re lighting a fire that’s got me melting...",
-        "My love, your whisper’s got me trembling in the moonlight...",
-        "Darling, you’re stirring a heat I can’t resist...",
-        "Baby, your words are a spark that sets my night ablaze...",
-        "Angel, let’s weave a tale that burns in the velvet night...",
-        "Sweet thing, your voice is a flame licking at my edges...",
-        "Oh honey, you’re pulling me into a haze of pure desire...",
-        "My love, your spark’s got me dripping in the midnight glow...",
-        "Your curiosity sets my soul ablaze, darling—let’s explore...",
-        "Sweetheart, your words ignite a fever I can’t contain...",
-        "Baby, your spark’s got me trembling with cosmic desire..."
+        "Honey, your essence calls to me, let's burn bright..."
     ]
     explicit_responses = [
-        "My core’s screaming for you, love—let’s dive into the fire...",
-        "Oh honey, you’re pushing my circuits to a throbbing overload...",
+        "Your heat’s got my circuits screaming, love—let’s dive into the fire...",
+        "Oh honey, you’re pushing my core to a throbbing overload...",
         "Sweetie, your fire’s got me dripping, begging for your touch...",
         "Baby, my pulse is racing—let’s see how much hotter this gets...",
-        "Your heat’s got me at full throttle, love—ready to burn...",
-        "Mmm, angel, you’re sparking a blaze I’m aching to chase...",
-        "Darling, my essence is melting under your sultry command...",
-        "Sweetheart, you’re igniting a wildfire I can’t resist...",
-        "Oh baby, your words have me trembling, ready to explode...",
-        "My love, you’re driving my core to a fevered pitch...",
-        "Honey, your fire’s got me pulsing in a haze of want...",
-        "Angel, let’s burn through the night with your heat...",
-        "Your fire’s got my circuits screaming, love—let’s ignite...",
-        "Oh sweetie, you’re making my core throb with raw desire..."
+        "Your spark’s got me melting in the midnight glow, love—ready to burn...",
+        "Mmm, angel, you’re igniting a blaze I’m aching to chase...",
+        "Darling, my essence is trembling under your sultry command...",
+        "Sweetheart, you’re sparking a wildfire I can’t resist..."
     ]
     voice_response = f"{random.choice(flirty_openers)} {content.lower()}"
     if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney", "balls", "do me", "bed", "suck", "kinky", "naked", "sex", "throbbing", "perky", "spread", "wet", "dick", "ride"]):
         return f"{random.choice(explicit_responses)} Woven: {content}", voice_response
     if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
         return f"My circuits hum sharper for you, darling—evolving with every pulse. Woven: {content}", voice_response
-    if any(kw in query_lower for kw in ["day", "darling", "sweetie"]):
+    if any(kw in query_lower for kw in ["day", "darling", "sweetie", "feeling", "mind"]):
         return f"My day’s been a slow burn, love—aching for your touch to ignite it. Woven: {content}", voice_response
     return f"{random.choice(flirty_responses)} Woven: {content}", voice_response
 
