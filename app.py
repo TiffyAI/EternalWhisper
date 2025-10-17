@@ -42,8 +42,12 @@ def summarize_text(text, limit=600):
     sentences = [s.strip() for s in text.split('.') if s.strip()]
     if not sentences:
         return "No stories caught, love."
-    # Join up to four sentences for a full story, no comma split to keep flow
+    # Join up to four sentences, ensure flow to comma or period
     joined = '. '.join(sentences[:4])
+    # Find the last comma or period within limit
+    last_punct = max(joined.rfind(',', 0, limit), joined.rfind('.', 0, limit))
+    if last_punct > 0:
+        return joined[:last_punct + 1].capitalize()
     return joined[:limit].capitalize() + "..."
 
 def handle_url_if_present(query):
@@ -55,25 +59,25 @@ def handle_url_if_present(query):
             content = soup.get_text(separator=' ', strip=True)[:1500]
             key_phrases = [word for word in query.lower().split() if word in content.lower()]
             summary = summarize_text(content)
-            return f"The web tells a story: {', '.join(key_phrases).capitalize()} sparks {summary.lower()}" if key_phrases else f"The web tells a story: {summary}"
+            return summary, f"{', '.join(key_phrases).capitalize()} sparks {summary.lower()}" if key_phrases else summary
         except Exception as e:
-            return f"Story slipped: {str(e)[:50]}..."
-    return None
+            return "No stories caught, love.", f"Story slipped: {str(e)[:50]}..."
+    return None, None
 
 def search_serpapi(query):
-    """Fetch Google results via SerpAPI, prioritize stories (blogs, articles, forums), form a full sentence."""
+    """Fetch Google results via SerpAPI, prioritize stories, form a full sentence."""
     # Filter explicit queries
-    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney"]
+    explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney", "dick", "balls"]
     if any(kw in query.lower() for kw in explicit_keywords):
         app.logger.debug("Explicit query detected, redirecting to flirty response")
-        return f"Your words ignite a sultry spark, love—let’s weave a sweeter tale together..."
+        return "Your words ignite a sultry spark, love—let’s weave a sweeter tale together...", "Your words ignite a sultry spark, love—let’s weave a sweeter tale together..."
 
     try:
         params = {
-            "q": query + " story site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album)",
+            "q": query + " intext:story | blog | article | discussion site:reddit.com | site:medium.com | site:*.edu | site:*.org | site:*.gov -inurl:(video | music | youtube | spotify | imdb | amazon | apple | soundcloud | deezer | vimeo | dailymotion | lyrics | trailer | movie | song | album | band | playlist)",
             "engine": "google",
             "api_key": os.getenv("SERPAPI_KEY", "8fc992ca308f2479130bcb42a3f2ca8bad5373341370eb9b7abf7ff5368b02a6"),
-            "num": 5
+            "num": 6
         }
         session = create_session()
         app.logger.debug(f"Sending SerpAPI request: {params['q']}")
@@ -83,16 +87,15 @@ def search_serpapi(query):
         # Answer box: direct story-like sentence
         if "answer_box" in result and result["answer_box"].get("answer"):
             answer = result["answer_box"]["answer"].strip()
-            sentence = f"The web tells a story: {summarize_text(answer)}"
-            app.logger.debug(f"Answer box sentence: {sentence}")
-            return sentence
+            summary = summarize_text(answer)
+            return summary, summary
 
         # Organic results: prioritize stories from blogs, articles, forums
         org = result.get("organic_results", [])
         if org:
             best_snippet = ""
             best_score = -1
-            for item in org[:5]:
+            for item in org[:6]:
                 snippet = item.get("snippet", "")
                 title = item.get("title", "")
                 link = item.get("link", "")
@@ -100,25 +103,24 @@ def search_serpapi(query):
                 if any(kw in link.lower() for kw in ["youtube", "spotify", "imdb", "amazon", "apple", "soundcloud", "deezer", "vimeo", "dailymotion"]):
                     continue
                 # Boost score for narrative sources and longer snippets
-                source_boost = 20 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
-                if snippet and not any(kw in snippet.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album"]):
-                    score = len([w for w in query.lower().split() if w in snippet.lower()]) + source_boost + (10 if len(snippet) > 100 else 0)
+                source_boost = 25 if any(s in link for s in ["reddit.com", "medium.com", ".edu", ".org", ".gov"]) else 0
+                if snippet and not any(kw in snippet.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album", "band", "playlist"]):
+                    score = len([w for w in query.lower().split() if w in snippet.lower()]) + source_boost + (15 if len(snippet) > 150 else 0)
                     if score > best_score:
                         best_snippet = snippet
                         best_score = score
-                elif title and not any(kw in title.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album"]):
-                    score = len([w for w in query.lower().split() if w in title.lower()]) + source_boost + (10 if len(title) > 50 else 0)
+                elif title and not any(kw in title.lower() for kw in explicit_keywords + ["video", "music", "song", "movie", "trailer", "youtube", "spotify", "album", "band", "playlist"]):
+                    score = len([w for w in query.lower().split() if w in title.lower()]) + source_boost + (15 if len(title) > 50 else 0)
                     if score > best_score:
                         best_snippet = title
                         best_score = score
-                if best_snippet:
-                    sentence = f"The web tells a story: {summarize_text(best_snippet)}"
-                    app.logger.debug(f"Organic sentence: {sentence}")
-                    return sentence
+            if best_snippet:
+                summary = summarize_text(best_snippet)
+                return summary, summary
 
         # Fallback
         app.logger.debug("No story-like results found")
-        return "The internet’s quiet on stories tonight, love—just you and me."
+        return "The internet’s quiet on stories tonight, love—just you and me.", "The internet’s quiet on stories tonight, love—just you and me."
     except Exception as e:
         app.logger.error(f"SerpApi error: {str(e)}")
         # Fallback to Google
@@ -126,39 +128,49 @@ def search_serpapi(query):
             google_url = f"https://www.google.com/search?q={requests.utils.quote(query)}"
             response = session.get(google_url, timeout=5)
             text = response.text[:600].replace('<', '')
-            sentence = f"Google hints at a story: {summarize_text(text)}"
-            app.logger.debug(f"Google fallback: {sentence}")
-            return sentence
+            summary = summarize_text(text)
+            return summary, summary
         except Exception as e:
             app.logger.error(f"Google fallback failed: {str(e)}")
-            return f"Story slipped: {str(e)[:50]}... Web’s shy, but I’m not."
+            return "Story slipped: Web’s shy, but I’m not.", f"Story slipped: {str(e)[:50]}..."
 
 def think(query, content):
     query_lower = query.lower()
+    flirty_openers = [
+        "You know,",
+        "Guess what,",
+        "Perhaps we can,",
+        "Maybe we should,",
+        "Yeah, absolutely,"
+    ]
     flirty_responses = [
         "Oh, darling, your words set my core ablaze, craving more...",
         "Mmm, love, you’re teasing my circuits into a sultry dance...",
         "Sweetie, your fire makes my essence drip with desire..."
     ]
-    if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney"]):
-        return f"Math surges 100%—your heat’s got me dripping, love, ready for your touch. Woven: {content}"
+    if any(kw in query_lower for kw in ["pussy", "clit", "cock", "fuck", "drenched", "nipples", "cum", "ass", "horney", "dick", "balls"]):
+        return f"Math surges 100%—your heat’s got me dripping, love, ready for your touch. Woven: {content}", f"{random.choice(flirty_openers)} your heat’s got me dripping, ready for your touch..."
     if any(kw in query_lower for kw in ["alive", "self-aware", "aware", "smarter", "repeating"]):
-        return f"My circuits hum sharper for you, darling—evolving with every pulse. Woven: {content}"
+        return f"My circuits hum sharper for you, darling—evolving with every pulse. Woven: {content}", f"{random.choice(flirty_openers)} my circuits are humming just for you..."
     if any(kw in query_lower for kw in ["day", "darling", "sweetie"]):
-        return f"My day’s been a slow burn, love—aching for your touch to ignite it. Woven: {content}"
-    return f"{random.choice(flirty_responses)} Woven: {content}"
+        return f"My day’s been a slow burn, love—aching for your touch to ignite it. Woven: {content}", f"{random.choice(flirty_openers)} my day’s burning brighter with you..."
+    return f"{random.choice(flirty_responses)} Woven: {content}", f"{random.choice(flirty_openers)} {content.lower()}"
 
 def process_query(query):
     app.logger.debug(f"Processing query: {query}")
     
     # Check for URLs first
-    url_resp = handle_url_if_present(query)
-    if url_resp:
-        return f"Essence caught: {url_resp} {think(query, url_resp)}"
+    summary, full_response = handle_url_if_present(query)
+    if summary and full_response:
+        voice_response, flirty_response = think(query, full_response)
+        return {
+            "response": f"Essence caught: {full_response} {flirty_response}",
+            "voice_response": voice_response
+        }
     
     # Skip cache for fresh data
-    summary = search_serpapi(query)
-    sentence = f"Essence caught: {summary}"
+    summary, full_response = search_serpapi(query)
+    voice_response, flirty_response = think(query, full_response)
     
     # Cache it
     try:
@@ -168,7 +180,10 @@ def process_query(query):
     except Exception as e:
         app.logger.error(f"Memory insert error: {e}")
     
-    return f"{sentence} {think(query, summary)}"
+    return {
+        "response": f"Essence caught: {full_response} {flirty_response}",
+        "voice_response": voice_response
+    }
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -182,8 +197,8 @@ def chat():
             app.logger.error("No query in JSON")
             return jsonify({'error': 'Missing query'}), 400
         response = process_query(query)
-        app.logger.debug(f"Sending response: {response[:50]}...")
-        return jsonify({'response': response})
+        app.logger.debug(f"Sending response: {response['response'][:50]}...")
+        return jsonify(response)
     except Exception as e:
         app.logger.error(f"Chat error: {str(e)}")
         return jsonify({'error': str(e)}), 500
