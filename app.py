@@ -65,7 +65,6 @@ def handle_url_if_present(query):
 
 def search_serpapi(query):
     """Fetch Google results via SerpAPI, prioritize stories, form a full sentence."""
-    # Filter explicit queries
     explicit_keywords = ["pussy", "clit", "cock", "fuck", "cum", "porn", "nipples", "ass", "horney"]
     if any(kw in query.lower() for kw in explicit_keywords):
         app.logger.debug("Explicit query detected, redirecting to flirty response")
